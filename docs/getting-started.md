@@ -77,8 +77,8 @@ more command families — confirm the live surface with `aivcs --help` and
 |------|----------|---------------|
 | Versioning | `init`, `snapshot`, `restore`, `log`, `branch`, `merge` | this walkthrough |
 | Run inspection | `replay-artifact --run <run-id>`, `diff spec`, `diff run`, `diff-runs --run-a/--run-b` | `aivcs <cmd> --help` |
-| Releases | `release promote` / `current` / `history` / `rollback` | [release-workflow runbook](./runbooks/release-workflow.md) |
-| CI | `ci run --stages fmt,check,clippy,test [--no-cache] [--fix]` | [aivcs-ci runbook](./runbooks/aivcs-ci.md) |
+| Releases | `release promote` / `current` / `history` / `rollback` | `aivcs release --help` |
+| CI | `ci run --stages fmt,check,clippy,test [--no-cache] [--fix]` | `aivcs ci run --help` |
 | Reports | `report cross-org --objective <id> --output <file>` | `aivcs report cross-org --help` |
 | GitHub PRs | `pr open` / `branch` / `commit` / `pipeline`, `pr-note` | [zero-touch PR pipeline](./runbooks/zero-touch-pr-pipeline.md) |
 
@@ -118,8 +118,5 @@ aivcs pr pipeline --branch feature/x --path docs/x.md --file ./x.md \
 
 - [Architecture overview](./architecture.md)
 - [Local development runbook](./runbooks/local-development.md)
-- [Database configuration runbook](./runbooks/database-configuration.md)
-- [Release workflow runbook](./runbooks/release-workflow.md)
-- [AIVCS CI (`aivcs ci run`) runbook](./runbooks/aivcs-ci.md)
 - [Zero-touch PR pipeline runbook](./runbooks/zero-touch-pr-pipeline.md)
 - [CI troubleshooting runbook](./runbooks/ci-troubleshooting.md)

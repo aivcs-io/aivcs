@@ -70,7 +70,7 @@ cargo run -p mom-service
 
 Production/staging sets `MOM_BACKEND_URL` to the internal mom service URL. Session memory (CommitId-scoped) always uses oxidized-state inside aivcs regardless of mom mode.
 
-See also [mcp-auth-guide.md](../mcp-auth-guide.md) for gateway auth and [database-configuration.md](database-configuration.md) for SurrealDB endpoints.
+Gateway auth and SurrealDB endpoint configuration are documented internally (not in this public repo).
 
 ### Add a new CLI command
 
