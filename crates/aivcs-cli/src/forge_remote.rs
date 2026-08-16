@@ -152,6 +152,19 @@ impl ForgeRemoteClient {
                 let path = entry.path();
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
+                // Deny-by-default for dotfiles: anything starting with `.` is excluded
+                // unless explicitly allow-listed below. This is the safety net — a new,
+                // unlisted dotfile (.env, .netrc, .npmrc, .aws, .ssh, …) stays excluded
+                // even if nobody adds it to this list by name. Do not remove this in
+                // favor of a denylist-only approach; that previously let secret-bearing
+                // dotfiles slip into published trees. See PR discussion on #1.
+                if file_name.starts_with('.')
+                    && file_name != ".code-governance.toml"
+                    && file_name != ".env.example"
+                {
+                    continue;
+                }
+
                 if file_name == ".aivcs"
                     || file_name == ".git"
                     || file_name == ".github"
@@ -1023,6 +1036,49 @@ mod tests {
             parse_clone_target("https://aivcsd.aivcs.io/aivcs/aivcs.git", "main").unwrap();
         assert_eq!(repo, "aivcs/aivcs");
         assert_eq!(branch, "main");
+    }
+
+    #[test]
+    fn walk_manifest_excludes_secret_bearing_dotfiles_by_default() {
+        // Regression test for the deny-by-default dotfile rule. A denylist-only
+        // approach previously let unlisted secret-bearing dotfiles (.env, .netrc,
+        // .npmrc, .aws, .ssh) slip into published trees. Do not weaken this to a
+        // denylist without also covering every plausible secret-bearing dotfile.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        fs::write(root.join("README.md"), b"hello").unwrap();
+        fs::write(root.join(".env"), b"SECRET=1").unwrap();
+        fs::write(root.join(".netrc"), b"machine example login x password y").unwrap();
+        fs::write(root.join(".npmrc"), b"//registry.npmjs.org/:_authToken=abc").unwrap();
+        fs::write(root.join(".env.example"), b"SECRET=").unwrap();
+        fs::write(root.join(".code-governance.toml"), b"[repo]").unwrap();
+        fs::create_dir_all(root.join(".aws")).unwrap();
+        fs::write(root.join(".aws").join("credentials"), b"[default]").unwrap();
+        fs::create_dir_all(root.join(".ssh")).unwrap();
+        fs::write(root.join(".ssh").join("id_rsa"), b"-----BEGIN PRIVATE KEY-----").unwrap();
+
+        let client = ForgeRemoteClient::new(None, None);
+        let (manifest, _digest, _bytes) = client.walk_manifest(root).unwrap();
+        let paths: std::collections::HashSet<_> = manifest.iter().map(|e| e.path.as_str()).collect();
+
+        // Must be included
+        assert!(paths.contains("README.md"));
+        assert!(paths.contains(".env.example"));
+        assert!(paths.contains(".code-governance.toml"));
+
+        // Must NOT be included — this is the actual regression check
+        assert!(!paths.contains(".env"), ".env leaked into manifest");
+        assert!(!paths.contains(".netrc"), ".netrc leaked into manifest");
+        assert!(!paths.contains(".npmrc"), ".npmrc leaked into manifest");
+        assert!(
+            !paths.iter().any(|p| p.starts_with(".aws/")),
+            ".aws/ leaked into manifest"
+        );
+        assert!(
+            !paths.iter().any(|p| p.starts_with(".ssh/")),
+            ".ssh/ leaked into manifest"
+        );
     }
 
     #[test]
