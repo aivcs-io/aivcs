@@ -6,7 +6,7 @@
 
 [repo]
 name = "aivcs"
-owner = "lornu-ai"
+owner = "aivcs"
 description = "aivcs — sovereign AI Version Control System engine (Rust CLI + aivcsd daemon)"
 
 [[checks]]
