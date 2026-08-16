@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-auth"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-core",
  "anyhow",
@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-backup-agent"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-backup-validator"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-ci"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-core",
  "anyhow",
@@ -152,7 +152,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-cli"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-ci",
  "aivcs-core",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-mcp-gateway"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-core",
  "anyhow",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-merge-emit"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "hex",
@@ -250,11 +250,11 @@ dependencies = [
 
 [[package]]
 name = "aivcs-repo"
-version = "0.4.0"
+version = "0.4.1"
 
 [[package]]
 name = "aivcs-restore-agent"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-runs"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "aivcs-source-controller"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-merge-emit",
  "anyhow",
@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "aivcsd"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aivcs-runs",
  "anyhow",
@@ -327,7 +327,7 @@ dependencies = [
 
 [[package]]
 name = "aivcsd-lite"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -1552,7 +1552,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-registry"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2152,7 +2152,7 @@ checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
 name = "data-mesh"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "percent-encoding",
  "reqwest",
@@ -2635,7 +2635,7 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forge-cas"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "nix-env-manager"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4564,7 +4564,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "oxidized-state"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5943,7 +5943,7 @@ dependencies = [
 
 [[package]]
 name = "semantic-rag-merge"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6125,7 +6125,7 @@ dependencies = [
 
 [[package]]
 name = "service-kit"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "axum",
  "serde_json",
