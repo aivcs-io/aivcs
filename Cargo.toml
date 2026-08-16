@@ -31,13 +31,13 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Lornu AI"]
 license = "Apache-2.0"
-repository = "aivcs://aivcs/aivcs"
-homepage = "https://docs.stevedores.org/aivcs"
-documentation = "https://docs.stevedores.org/aivcs"
+repository = "https://github.com/aivcs-io/aivcs"
+homepage = "https://aivcs.io"
+documentation = "https://docs.aivcs.io"
 
 [workspace.dependencies]
 # Async Runtime
@@ -116,13 +116,13 @@ wiremock = "0.6"
 
 
 # Internal crates
-aivcs-core = { version = "0.4.0", path = "crates/aivcs-core" }
-aivcs-ci = { version = "0.4.0", path = "crates/aivcs-ci" }
-aivcs-runs = { version = "0.4.0", path = "crates/aivcs-runs" }
-service-kit = { version = "0.4.0", path = "crates/service-kit" }
-oxidized-state = { version = "0.4.0", path = "crates/oxidized-state" }
-nix-env-manager = { version = "0.4.0", path = "crates/nix-env-manager" }
-semantic-rag-merge = { version = "0.4.0", path = "crates/semantic-rag-merge" }
+aivcs-core = { version = "0.4.1", path = "crates/aivcs-core" }
+aivcs-ci = { version = "0.4.1", path = "crates/aivcs-ci" }
+aivcs-runs = { version = "0.4.1", path = "crates/aivcs-runs" }
+service-kit = { version = "0.4.1", path = "crates/service-kit" }
+oxidized-state = { version = "0.4.1", path = "crates/oxidized-state" }
+nix-env-manager = { version = "0.4.1", path = "crates/nix-env-manager" }
+semantic-rag-merge = { version = "0.4.1", path = "crates/semantic-rag-merge" }
 
 [profile.release]
 opt-level = "z"
