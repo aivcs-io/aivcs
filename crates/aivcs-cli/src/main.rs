@@ -109,7 +109,7 @@ enum Commands {
         port: u16,
     },
 
-    /// Import a read-only GitHub repo to the sovereign forge (og-agent-forge onboard)
+    /// Import a read-only GitHub repo to the AIVCS forge (og-agent-forge onboard)
     Import {
         /// GitHub URL or org/repo slug (e.g. lornu-ai/agent-envelope-ai)
         source: String,
@@ -130,7 +130,7 @@ enum Commands {
         #[arg(
             short,
             long,
-            default_value = "Sovereign import via aivcs (read-only GitHub bootstrap)"
+            default_value = "Import via aivcs (read-only GitHub bootstrap)"
         )]
         message: String,
 
@@ -151,8 +151,8 @@ enum Commands {
         keep: Option<PathBuf>,
 
         /// Rewrite github.com/… provenance to aivcs:// in Cargo.toml, propel.toml, flake.nix
-        #[arg(long, default_value_t = true)]
-        sovereign_provenance: bool,
+        #[arg(long, default_value_t = true, alias = "sovereign-provenance")]
+        forge_provenance: bool,
     },
 
     /// Create a snapshot of agent state, linked to the current git HEAD
@@ -298,7 +298,7 @@ enum Commands {
         action: PrAction,
     },
 
-    /// Sovereign infra reconcilers (Cloudflare LB, Flux) — no GitHub Actions
+    /// Infra reconcilers (Cloudflare LB, Flux) — no GitHub Actions
     Infra {
         #[command(subcommand)]
         action: infra::InfraAction,
@@ -334,7 +334,7 @@ enum Commands {
         base: String,
     },
 
-    /// Publish a tree to the sovereign AIVCS CAS forge (closing GAPS.md US-2.5)
+    /// Publish a tree to the AIVCS CAS forge (closing GAPS.md US-2.5)
     Publish {
         /// Path to directory/tree to publish (default: current directory)
         #[arg(default_value = ".")]
@@ -345,10 +345,10 @@ enum Commands {
         repo: String,
 
         /// Commit message
-        #[arg(short, long, default_value = "Sovereign publish via aivcs CLI")]
+        #[arg(short, long, default_value = "Publish via aivcs CLI")]
         message: String,
 
-        /// Author string (defaults to git config user identity or principle@lornu.ai)
+        /// Author string (defaults to AIVCS_AUTHOR or the AIVCS agent identity)
         #[arg(short, long)]
         author: Option<String>,
 
@@ -363,9 +363,13 @@ enum Commands {
         /// Auth token override
         #[arg(long)]
         token: Option<String>,
+
+        /// Make the repository public (default is private)
+        #[arg(long)]
+        public: bool,
     },
 
-    /// Fetch and materialize a repository tree from the sovereign AIVCS forge
+    /// Fetch and materialize a repository tree from the AIVCS forge
     Fetch {
         /// Repository slug (e.g. aivcs/aivcs)
         #[arg(short, long)]
@@ -410,7 +414,7 @@ enum Commands {
         token: Option<String>,
     },
 
-    /// Push local changes to the remote sovereign AIVCS forge
+    /// Push local changes to the remote AIVCS forge
     Push {
         /// Local tree directory (default: .)
         #[arg(default_value = ".")]
@@ -431,6 +435,10 @@ enum Commands {
         /// Remote forge URL override
         #[arg(long)]
         remote: Option<String>,
+
+        /// Make the repository public (default is private)
+        #[arg(long)]
+        public: bool,
     },
 
     /// Pull remote changes into the local working directory
@@ -547,10 +555,6 @@ enum PrAction {
         /// Request review from the Librarian Agent
         #[arg(long, default_value_t = true)]
         librarian: bool,
-
-        /// Require local-ci validation before opening PR
-        #[arg(long, default_value_t = true)]
-        require_local_ci: bool,
     },
 
     /// Create a GitHub branch from a base ref
@@ -647,10 +651,6 @@ enum PrAction {
         /// Skip branch creation (for retries when the branch already exists)
         #[arg(long, default_value_t = false)]
         skip_branch: bool,
-
-        /// Require local-ci validation before opening PR
-        #[arg(long, default_value_t = true)]
-        require_local_ci: bool,
     },
 
     /// Verify aivcs-ci-snapshot against HEAD
@@ -821,7 +821,7 @@ async fn main() -> Result<()> {
             remote,
             token,
             keep,
-            sovereign_provenance,
+            forge_provenance,
         } => {
             forge_import::run_import(forge_import::ImportOptions {
                 source,
@@ -833,7 +833,7 @@ async fn main() -> Result<()> {
                 remote,
                 token,
                 keep_dir: keep,
-                sovereign_provenance,
+                forge_provenance,
             })
             .await
         }
@@ -938,7 +938,6 @@ async fn main() -> Result<()> {
                 owner,
                 repo,
                 librarian,
-                require_local_ci,
             } => {
                 cmd_pr_open(PrOpenArgs {
                     title,
@@ -948,7 +947,6 @@ async fn main() -> Result<()> {
                     owner,
                     repo,
                     librarian,
-                    require_local_ci,
                 })
                 .await
             }
@@ -978,7 +976,6 @@ async fn main() -> Result<()> {
                 repo,
                 librarian,
                 skip_branch,
-                require_local_ci,
             } => {
                 cmd_pr_pipeline(
                     &handle,
@@ -994,7 +991,6 @@ async fn main() -> Result<()> {
                         repo,
                         librarian,
                         skip_branch,
-                        require_local_ci,
                     },
                 )
                 .await
@@ -1023,31 +1019,14 @@ async fn main() -> Result<()> {
             branch,
             remote,
             token,
+            public,
         } => {
             let resolved_author = author
                 .or_else(|| std::env::var("AIVCS_AUTHOR").ok())
-                .unwrap_or_else(|| {
-                    let name = std::process::Command::new("git")
-                        .args(["config", "user.name"])
-                        .output()
-                        .ok()
-                        .and_then(|o| String::from_utf8(o.stdout).ok())
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| "Steven Irvin".to_string());
-                    let email = std::process::Command::new("git")
-                        .args(["config", "user.email"])
-                        .output()
-                        .ok()
-                        .and_then(|o| String::from_utf8(o.stdout).ok())
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| "principle@lornu.ai".to_string());
-                    format!("{} <{}>", name, email)
-                });
+                .unwrap_or_else(|| "aivcs-cli <agent@aivcs.io>".to_string());
             let client = forge_remote::ForgeRemoteClient::new(remote.as_deref(), token.as_deref());
             let commit_id = client
-                .publish(&path, &repo, &message, &resolved_author, &branch)
+                .publish(&path, &repo, &message, &resolved_author, &branch, Some(!public))
                 .await?;
             println!("Published to aivcs://{}@{}", repo, branch);
             println!("Commit ID: {}", commit_id);
@@ -1088,12 +1067,13 @@ async fn main() -> Result<()> {
             branch,
             message,
             remote,
+            public,
         } => {
             let repo_name = repo.unwrap_or_else(|| "aivcs/aivcs".to_string());
             let client = forge_remote::ForgeRemoteClient::new(remote.as_deref(), None);
             let author = "aivcs-cli <agent@aivcs.io>";
             let commit_id = client
-                .publish(&path, &repo_name, &message, author, &branch)
+                .publish(&path, &repo_name, &message, author, &branch, Some(!public))
                 .await?;
             println!(
                 "Pushed {} -> aivcs://{}@{}",
@@ -1202,7 +1182,6 @@ struct PrOpenArgs {
     owner: String,
     repo: String,
     librarian: bool,
-    require_local_ci: bool,
 }
 
 async fn cmd_pr_open(args: PrOpenArgs) -> Result<()> {
@@ -1214,14 +1193,9 @@ async fn cmd_pr_open(args: PrOpenArgs) -> Result<()> {
         owner,
         repo,
         librarian,
-        require_local_ci,
     } = args;
 
     let repo_root = aivcs_core::find_repo_root();
-
-    if require_local_ci {
-        aivcs_core::run_local_ci(&repo_root)?;
-    }
 
     // Always generate snapshot and embed in body
     let snapshot = aivcs_core::build_ci_snapshot(&repo_root)?;
@@ -1302,7 +1276,6 @@ struct PrPipelineArgs {
     repo: String,
     librarian: bool,
     skip_branch: bool,
-    require_local_ci: bool,
 }
 
 async fn cmd_pr_pipeline(_handle: &SurrealHandle, args: PrPipelineArgs) -> Result<()> {
@@ -1318,14 +1291,9 @@ async fn cmd_pr_pipeline(_handle: &SurrealHandle, args: PrPipelineArgs) -> Resul
         repo,
         librarian,
         skip_branch,
-        require_local_ci,
     } = args;
 
     let repo_root = aivcs_core::find_repo_root();
-
-    if require_local_ci {
-        aivcs_core::run_local_ci(&repo_root)?;
-    }
 
     // Always generate snapshot and embed in body
     let snapshot = aivcs_core::build_ci_snapshot(&repo_root)?;

@@ -1,6 +1,6 @@
 //! CI snapshot generation and verification for AIVCS.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use oxidized_state::CiSnapshot;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -74,22 +74,7 @@ pub fn find_repo_root() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-/// Run local-ci check on the workspace
-pub fn run_local_ci(repo_root: &Path) -> Result<()> {
-    println!("Executing local-ci against workspace: {:?}", repo_root);
-    let status = std::process::Command::new("local-ci")
-        .current_dir(repo_root)
-        .status()
-        .context(
-            "Failed to execute 'local-ci' command. Make sure it is installed and on your PATH.",
-        )?;
 
-    if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("local-ci checks failed. Please run 'local-ci --fix' locally and resolve all issues before opening a PR.")
-    }
-}
 
 /// Build a CiSnapshot for the current workspace
 pub fn build_ci_snapshot(repo_root: &Path) -> Result<CiSnapshot> {
