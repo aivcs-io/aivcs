@@ -39,7 +39,6 @@ tools/lci/
 docs/adr/
 docs/proposals/
 docs/research/
-docs/runbooks/
 docs/BRANCH_CLEANUP.md
 docs/CRATES_IO_RELEASE.md
 docs/dual_ledger_guide.md

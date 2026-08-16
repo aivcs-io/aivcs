@@ -6,14 +6,14 @@ Run AIVCS inside a NixOS-WSL distribution with reproducible tooling and a precon
 
 - Windows 11 with WSL2 enabled
 - Nix with flakes (`nix flake` works on your host builder)
-- Optional: [Attic](aivcs://zhaofengli/attic) credentials for `https://nix-cache.lornu.ai`
+- Optional: [Attic](https://github.com/zhaofengli/attic) credentials for binary cache
 
 ## Build the WSL tarball
 
 From a Linux machine or WSL distro with Nix:
 
 ```bash
-git clone aivcs://stevedores-org/aivcs.git
+git clone https://github.com/aivcs-io/aivcs.git
 cd aivcs
 
 # Validates the NixOS-WSL configuration
@@ -26,7 +26,7 @@ sudo ./result/bin/nixos-wsl-tarball-builder
 
 The builder writes `nixos.wsl` in the current directory.
 
-CI also uploads the tarball builder artifact from `.github/workflows/nixos-wsl.yml` on pushes to `develop` and `main`.
+CI also uploads the tarball builder artifact from the CI pipeline on pushes to `main`.
 
 ## Import into WSL
 
