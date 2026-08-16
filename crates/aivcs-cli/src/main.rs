@@ -555,6 +555,7 @@ enum PrAction {
         /// Request review from the Librarian Agent
         #[arg(long, default_value_t = true)]
         librarian: bool,
+
     },
 
     /// Create a GitHub branch from a base ref
@@ -651,6 +652,7 @@ enum PrAction {
         /// Skip branch creation (for retries when the branch already exists)
         #[arg(long, default_value_t = false)]
         skip_branch: bool,
+
     },
 
     /// Verify aivcs-ci-snapshot against HEAD
