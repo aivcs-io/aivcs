@@ -1,6 +1,6 @@
 # aivcs
 
-The **aivcs** binary — the sovereign AI Version Control System engine (Rust CLI `aivcs` + `aivcsd` daemon): state commits, semantic merge, and CI runs for agent and source workflows. No git, no GitHub.
+The **aivcs** binary — the AI Version Control System engine (Rust CLI `aivcs` + `aivcsd` daemon): state commits, semantic merge, and CI runs for agent and source workflows. Open source at [github.com/aivcs-io](https://github.com/aivcs-io).
 
 Built as an OCI image via [oci-builds](aivcs://aivcs/oci-builds) and deployed as a service via [infra-code](aivcs://aivcs/infra-code).
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-16
+
+### Fixed
+- Fixed `aivcs clone` / `fetch` proxy routing issue. Added double-segment route fallback support in `forge-cas` to handle reverse proxies (like Cloudflare/ALBs) that decode `%2F` urlencoded repo slashes in HTTP paths.
+
 ## [0.3.2] - 2026-06-15
 
 ### Added

@@ -92,15 +92,34 @@ fn bearer(req: &Request<Body>) -> Option<&str> {
 /// silently mutable by anything that calls `set_var`. Resolving it at startup
 /// also means the "not configured" warning is logged once, at boot, where an
 /// operator will see it.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone)]
 pub struct AuthConfig {
     token: Option<String>,
+    pub forge: Option<forge_cas::SharedForge>,
+}
+
+impl std::fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("token", &self.token.as_ref().map(|_| "***"))
+            .finish()
+    }
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            token: None,
+            forge: None,
+        }
+    }
 }
 
 impl AuthConfig {
-    pub fn from_env() -> Self {
+    pub fn from_env(forge: Option<forge_cas::SharedForge>) -> Self {
         Self {
             token: configured_token(),
+            forge,
         }
     }
     /// Build a config directly, bypassing the environment.
@@ -112,11 +131,81 @@ impl AuthConfig {
     pub fn with_token(token: Option<&str>) -> Self {
         Self {
             token: token.map(str::to_string),
+            forge: None,
+        }
+    }
+    #[cfg(test)]
+    pub fn with_token_and_forge(token: Option<&str>, forge: Option<forge_cas::SharedForge>) -> Self {
+        Self {
+            token: token.map(str::to_string),
+            forge,
         }
     }
     pub fn is_configured(&self) -> bool {
         self.token.is_some()
     }
+}
+
+fn extract_repo_from_path(path: &str) -> Option<String> {
+    let path = path.trim().trim_matches('/');
+    
+    // Check both /api/v1/repos/ and /v1/repos/ prefixes
+    let rest = if let Some(r) = path.strip_prefix("api/v1/repos") {
+        r.trim_matches('/')
+    } else if let Some(r) = path.strip_prefix("v1/repos") {
+        r.trim_matches('/')
+    } else {
+        return None;
+    };
+    
+    if rest.is_empty() {
+        return None;
+    }
+    
+    // Split the remaining segments
+    let segments: Vec<&str> = rest.split('/').collect();
+    if segments.is_empty() {
+        return None;
+    }
+    
+    // If the first segment is URL-encoded (e.g. contains %2F), decode it
+    let decoded_first = percent_encoding::percent_decode_str(segments[0])
+        .decode_utf8_lossy()
+        .into_owned();
+    
+    if decoded_first.contains('/') {
+        return Some(decoded_first);
+    }
+    
+    if segments.len() >= 2 {
+        let candidate = format!("{}/{}", segments[0], segments[1]);
+        if segments[1] != "branches" && segments[1] != "source" && segments[1] != "commits" {
+            return Some(candidate);
+        }
+    }
+    
+    Some(segments[0].to_string())
+}
+
+fn extract_repo_from_request(req: &Request<Body>) -> Option<String> {
+    let path = req.uri().path();
+    if let Some(repo) = extract_repo_from_path(path) {
+        return Some(repo);
+    }
+    
+    if let Some(query) = req.uri().query() {
+        for pair in query.split('&') {
+            if let Some((key, val)) = pair.split_once('=') {
+                if key == "repo" {
+                    if let Ok(decoded) = percent_encoding::percent_decode_str(val).decode_utf8() {
+                        return Some(decoded.into_owned());
+                    }
+                }
+            }
+        }
+    }
+    
+    None
 }
 
 /// Fail-closed bearer gate.
@@ -144,6 +233,26 @@ pub async fn require_bearer(
     // secure the edge.
     if let Some(peer) = mesh_identity(&req) {
         tracing::debug!(%peer, "in-mesh caller; bearer not required (SM2)");
+        return next.run(req).await;
+    }
+
+    // Check if it is a public repository read (GET) request
+    let is_public_read = if req.method() == axum::http::Method::GET {
+        if let Some(repo) = extract_repo_from_request(&req) {
+            if let Some(forge) = &cfg.forge {
+                matches!(forge.is_repo_private(&repo).await, Ok(false))
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if is_public_read {
+        tracing::debug!("Tokenless read allowed for public repository");
         return next.run(req).await;
     }
 
@@ -193,6 +302,19 @@ mod tests {
         assert_eq!(configured_token().as_deref(), Some("real-token"));
         std::env::remove_var(TOKEN_ENV);
         assert!(configured_token().is_none());
+    }
+
+    #[test]
+    fn extract_repo_from_path_works_for_all_shapes() {
+        assert_eq!(extract_repo_from_path("/api/v1/repos/single"), Some("single".to_string()));
+        assert_eq!(extract_repo_from_path("/api/v1/repos/single/source"), Some("single".to_string()));
+        assert_eq!(extract_repo_from_path("/api/v1/repos/single/branches/main"), Some("single".to_string()));
+        
+        assert_eq!(extract_repo_from_path("/api/v1/repos/org/repo"), Some("org/repo".to_string()));
+        assert_eq!(extract_repo_from_path("/api/v1/repos/org/repo/source"), Some("org/repo".to_string()));
+        assert_eq!(extract_repo_from_path("/api/v1/repos/org/repo/branches/main"), Some("org/repo".to_string()));
+        
+        assert_eq!(extract_repo_from_path("/api/v1/repos/org%2Frepo/source"), Some("org/repo".to_string()));
     }
 
     #[test]
@@ -326,6 +448,47 @@ mod tests {
         assert_eq!(
             call(app(cfg), "GET", "/api/v1/repos", None).await,
             StatusCode::SERVICE_UNAVAILABLE
+        );
+    }
+
+    #[tokio::test]
+    async fn public_repository_allows_unauthenticated_reads_but_refuses_writes() {
+        let forge = forge_cas::new_forge();
+        
+        // 1. Mark repo "public-repo" as public
+        forge.set_repo_private("public-repo", false).await.unwrap();
+        // 2. Mark repo "private-repo" as private
+        forge.set_repo_private("private-repo", true).await.unwrap();
+
+        let cfg = AuthConfig::with_token_and_forge(Some("s3cret"), Some(forge));
+
+        let app = Router::new()
+            .route(
+                "/api/v1/repos/:repo/source",
+                axum::routing::get(|| async { "source" }),
+            )
+            .route(
+                "/api/v1/repos/:repo/branches/:branch",
+                axum::routing::post(|| async { "update" }),
+            )
+            .layer(axum::middleware::from_fn_with_state(cfg, require_bearer));
+
+        // GET public repo -> OK
+        assert_eq!(
+            call(app.clone(), "GET", "/api/v1/repos/public-repo/source", None).await,
+            StatusCode::OK
+        );
+
+        // GET private repo -> UNAUTHORIZED
+        assert_eq!(
+            call(app.clone(), "GET", "/api/v1/repos/private-repo/source", None).await,
+            StatusCode::UNAUTHORIZED
+        );
+
+        // POST public repo -> UNAUTHORIZED (writes must be auth'd)
+        assert_eq!(
+            call(app.clone(), "POST", "/api/v1/repos/public-repo/branches/main", None).await,
+            StatusCode::UNAUTHORIZED
         );
     }
 }

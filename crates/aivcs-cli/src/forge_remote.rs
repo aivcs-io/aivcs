@@ -1,7 +1,7 @@
-//! Sovereign Forge Remote CAS Operations for AIVCS CLI
+//! Forge remote CAS operations for the AIVCS CLI.
 //!
-//! Provides high-performance, parallel implementation of `publish`, `fetch`, `clone`, `push`, and `pull`
-//! communicating directly with `aivcsd-lite` (FR/TDD: forge CAS atomic publish).
+//! Parallel `publish`, `fetch`, `clone`, `push`, and `pull` against `aivcsd-lite`
+//! (`/api/v1/*` content-addressed forge).
 
 use anyhow::{anyhow, Context, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
@@ -62,7 +62,10 @@ struct CreateCommitResponse {
 pub struct ForgeRemoteClient {
     remote_url: String,
     token: Option<String>,
+    /// Short timeout for branch/manifest/commit metadata.
     http: reqwest::Client,
+    /// Long timeout for blob upload/download transfers.
+    blob_http: reqwest::Client,
 }
 
 impl ForgeRemoteClient {
@@ -82,14 +85,30 @@ impl ForgeRemoteClient {
             });
 
         Self {
-            remote_url: base_url.unwrap_or_else(|| IN_CLUSTER_FORGE_URL.to_string()),
+            remote_url: base_url.unwrap_or_else(default_forge_url_or_empty),
             token: auth_token,
             http: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(180))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(forge_metadata_timeout())
+                .pool_max_idle_per_host(32)
+                .build()
+                .unwrap_or_default(),
+            blob_http: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(forge_blob_timeout())
                 .pool_max_idle_per_host(32)
                 .build()
                 .unwrap_or_default(),
         }
+    }
+
+    fn forge_url(&self) -> Result<&str> {
+        if self.remote_url.is_empty() {
+            return Err(anyhow!(
+                "no forge URL configured — run `aivcs login` or set AIVCS_FORGE_URL"
+            ));
+        }
+        Ok(&self.remote_url)
     }
 
     fn auth_headers(&self) -> HeaderMap {
@@ -133,14 +152,10 @@ impl ForgeRemoteClient {
                 let path = entry.path();
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
-                if file_name.starts_with('.')
-                    && file_name != ".code-governance.toml"
-                    && file_name != ".env.example"
-                    && file_name != ".github"
-                {
-                    continue;
-                }
-                if file_name == "target"
+                if file_name == ".aivcs"
+                    || file_name == ".git"
+                    || file_name == ".github"
+                    || file_name == "target"
                     || file_name == "result"
                     || file_name == "node_modules"
                     || file_name == "build"
@@ -190,7 +205,7 @@ impl ForgeRemoteClient {
         Ok((entries, digest, total_bytes))
     }
 
-    /// Publish a tree to the sovereign AIVCS forge with parallel blob uploads.
+    /// Publish a tree to the AIVCS forge with parallel blob uploads.
     /// Fails closed: any blob, commit, or branch step error aborts the publish.
     pub async fn publish(
         &self,
@@ -199,6 +214,7 @@ impl ForgeRemoteClient {
         message: &str,
         author: &str,
         branch: &str,
+        private: Option<bool>,
     ) -> Result<String> {
         let (manifest, tree_digest, total_bytes) = self.walk_manifest(tree_path)?;
         info!(
@@ -212,10 +228,11 @@ impl ForgeRemoteClient {
             return Err(anyhow!("refusing to publish empty tree"));
         }
 
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
 
         // 1. Ensure repository exists
-        let repo_url = format!("{}/api/v1/repos", self.remote_url);
+        let repo_url = format!("{forge}/api/v1/repos");
         let repo_create_resp = self
             .http
             .post(&repo_url)
@@ -223,6 +240,7 @@ impl ForgeRemoteClient {
             .json(&serde_json::json!({
                 "repo": repo,
                 "source_url": format!("aivcs://{}", repo),
+                "private": private,
             }))
             .send()
             .await
@@ -272,6 +290,7 @@ impl ForgeRemoteClient {
         if manifest.is_empty() {
             return Ok(());
         }
+        let forge = self.forge_url()?.to_string();
         let sem = Arc::new(Semaphore::new(forge_upload_concurrency()));
         let mut join_set = JoinSet::new();
 
@@ -280,8 +299,8 @@ impl ForgeRemoteClient {
             let data =
                 fs::read(&file_path).with_context(|| format!("read local file {}", entry.path))?;
             let permit = sem.clone().acquire_owned().await.unwrap();
-            let http = self.http.clone();
-            let remote_url = self.remote_url.clone();
+            let http = self.blob_http.clone();
+            let remote_url = forge.clone();
             let enc_repo = enc_repo.to_string();
             let raw_headers = self.raw_auth_headers();
             let path_str = entry.path.clone();
@@ -312,13 +331,14 @@ impl ForgeRemoteClient {
         parent_head: &str,
     ) -> Result<HashSet<String>> {
         let manifest = self.load_manifest(repo, parent_head).await?;
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
         let raw_headers = self.raw_auth_headers();
         let mut present = HashSet::new();
         for entry in dedupe_blobs_by_digest(&manifest) {
             if blob_exists(
                 &self.http,
-                &self.remote_url,
+                forge,
                 &raw_headers,
                 &entry.digest,
                 &enc_repo,
@@ -333,11 +353,9 @@ impl ForgeRemoteClient {
     }
 
     async fn commit_exists(&self, repo: &str, commit_id: &str) -> Result<bool> {
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
-        let url = format!(
-            "{}/api/v1/commits/{}?repo={}",
-            self.remote_url, commit_id, enc_repo
-        );
+        let url = format!("{forge}/api/v1/commits/{commit_id}?repo={enc_repo}");
         let resp = self
             .http
             .get(&url)
@@ -357,7 +375,8 @@ impl ForgeRemoteClient {
         parents: &[String],
         branch: Option<&str>,
     ) -> Result<String> {
-        let commit_url = format!("{}/api/v1/commits", self.remote_url);
+        let forge = self.forge_url()?;
+        let commit_url = format!("{forge}/api/v1/commits");
         let mut commit_payload = serde_json::json!({
             "repo": repo,
             "manifest": manifest,
@@ -456,10 +475,8 @@ impl ForgeRemoteClient {
 
     /// Update a branch head to point to a new commit.
     async fn update_branch(&self, enc_repo: &str, branch: &str, commit_id: &str) -> Result<()> {
-        let branch_url = format!(
-            "{}/api/v1/repos/{}/branches/{}",
-            self.remote_url, enc_repo, branch
-        );
+        let forge = self.forge_url()?;
+        let branch_url = format!("{forge}/api/v1/repos/{enc_repo}/branches/{branch}");
         let branch_payload = serde_json::json!({ "commit_id": commit_id });
 
         let resp = self
@@ -490,11 +507,9 @@ impl ForgeRemoteClient {
             }
         }
 
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
-        let commit_url = format!(
-            "{}/api/v1/commits/{}?repo={}",
-            self.remote_url, commit_id, enc_repo
-        );
+        let commit_url = format!("{forge}/api/v1/commits/{commit_id}?repo={enc_repo}");
         let resp = self
             .http
             .get(&commit_url)
@@ -526,11 +541,9 @@ impl ForgeRemoteClient {
         repo: &str,
         commit_id: &str,
     ) -> Result<Vec<ManifestEntry>> {
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
-        let manifest_url = format!(
-            "{}/api/v1/commits/{}/manifest?repo={}",
-            self.remote_url, commit_id, enc_repo
-        );
+        let manifest_url = format!("{forge}/api/v1/commits/{commit_id}/manifest?repo={enc_repo}");
         let m_resp = self
             .http
             .get(&manifest_url)
@@ -552,11 +565,9 @@ impl ForgeRemoteClient {
 
     /// Resolve a branch to its head commit ID
     pub async fn resolve_branch(&self, repo: &str, branch: &str) -> Result<String> {
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
-        let url = format!(
-            "{}/api/v1/repos/{}/branches/{}",
-            self.remote_url, enc_repo, branch
-        );
+        let url = format!("{forge}/api/v1/repos/{enc_repo}/branches/{branch}");
 
         let resp = self
             .http
@@ -601,6 +612,7 @@ impl ForgeRemoteClient {
         }
 
         fs::create_dir_all(output_dir)?;
+        let forge = self.forge_url()?;
         let enc_repo = urlencoding::encode(repo);
         let output_root = fs::canonicalize(output_dir).unwrap_or_else(|_| output_dir.to_path_buf());
 
@@ -627,8 +639,8 @@ impl ForgeRemoteClient {
 
         for (digest, paths) in by_digest {
             let permit = sem.clone().acquire_owned().await.unwrap();
-            let http = self.http.clone();
-            let remote_url = self.remote_url.clone();
+            let http = self.blob_http.clone();
+            let remote_url = forge.to_string();
             let enc = enc_repo.to_string();
             let raw_headers = self.raw_auth_headers();
 
@@ -673,34 +685,72 @@ impl ForgeRemoteClient {
         Ok(())
     }
 
-    /// Clone a repository from `aivcs://org/repo` or bare slug into a directory.
+    /// Clone a repository from `aivcs://org/repo[@branch]` or bare slug into a directory.
     pub async fn clone(
         &self,
         url_or_slug: &str,
         target_dir: Option<&Path>,
         branch: &str,
     ) -> Result<PathBuf> {
-        let repo_slug = url_or_slug
-            .trim_start_matches("aivcs://")
-            .trim_start_matches("https://aivcs.io/")
-            .trim_start_matches("https://future.aivcs.io/")
-            .trim_start_matches("https://aivcsd.aivcs.io/");
-
-        let parts: Vec<&str> = repo_slug.split('/').collect();
-        if parts.len() < 2 || parts.iter().any(|p| p.is_empty()) {
-            return Err(anyhow!(
-                "invalid repository URI or slug (expected org/repo): {url_or_slug}"
-            ));
-        }
-
-        let default_dir_name = parts.last().copied().unwrap_or("repo");
+        let (repo_slug, resolved_branch) = parse_clone_target(url_or_slug, branch)?;
+        let default_dir_name = repo_slug
+            .split('/')
+            .nth(1)
+            .unwrap_or("repo");
         let dest = target_dir
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from(default_dir_name));
 
-        self.fetch(repo_slug, branch, &dest).await?;
+        self.fetch(&repo_slug, &resolved_branch, &dest).await?;
         Ok(dest)
     }
+}
+
+/// Parse `aivcs://org/repo`, `org/repo`, or `org/repo@branch` into slug + branch.
+pub fn parse_clone_target(url_or_slug: &str, branch_override: &str) -> Result<(String, String)> {
+    let mut slug = url_or_slug.trim();
+    for prefix in [
+        "aivcs://",
+        "https://aivcs.io/",
+        "https://www.aivcs.io/",
+        "https://future.aivcs.io/",
+        "https://aivcsd.aivcs.io/",
+    ] {
+        if let Some(rest) = slug.strip_prefix(prefix) {
+            slug = rest;
+            break;
+        }
+    }
+    slug = slug.trim_end_matches('/').trim_end_matches(".git");
+
+    let (repo_part, branch_from_url) = if let Some(at) = slug.rfind('@') {
+        let (repo, branch) = slug.split_at(at);
+        if repo.is_empty() || branch.len() <= 1 {
+            return Err(anyhow!(
+                "invalid repository URI or slug (expected org/repo): {url_or_slug}"
+            ));
+        }
+        (repo, Some(&branch[1..]))
+    } else {
+        (slug, None)
+    };
+
+    let parts: Vec<&str> = repo_part.split('/').filter(|p| !p.is_empty()).collect();
+    if parts.len() < 2 {
+        return Err(anyhow!(
+            "invalid repository URI or slug (expected org/repo): {url_or_slug}"
+        ));
+    }
+    let repo_slug = format!("{}/{}", parts[0], parts[1]);
+    let branch = branch_from_url
+        .filter(|b| !b.is_empty())
+        .unwrap_or(branch_override)
+        .to_string();
+    Ok((repo_slug, branch))
+}
+
+fn default_forge_url_or_empty() -> String {
+    default_forge_url().unwrap_or_default()
 }
 
 fn ensure_safe_repo_path(path: &str) -> Result<()> {
@@ -828,6 +878,24 @@ pub fn blobs_to_upload(
         .collect()
 }
 
+fn forge_metadata_timeout() -> std::time::Duration {
+    std::time::Duration::from_secs(
+        std::env::var("AIVCS_FORGE_METADATA_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(45),
+    )
+}
+
+fn forge_blob_timeout() -> std::time::Duration {
+    std::time::Duration::from_secs(
+        std::env::var("AIVCS_FORGE_BLOB_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(180),
+    )
+}
+
 fn forge_upload_concurrency() -> usize {
     std::env::var("AIVCS_FORGE_UPLOAD_CONCURRENCY")
         .ok()
@@ -920,7 +988,6 @@ fn default_forge_url() -> Option<String> {
         if std::env::var("KUBERNETES_SERVICE_HOST").is_ok() {
             Some(IN_CLUSTER_FORGE_URL.to_string())
         } else {
-            // Off-cluster without `aivcs login`: run login first (cluster DNS, no port-forward).
             None
         }
     })
@@ -940,6 +1007,23 @@ mod tests {
     use tempfile::TempDir;
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn parse_clone_target_accepts_aivcs_uri_and_branch() {
+        let (repo, branch) =
+            parse_clone_target("aivcs://aivcs/data-mesh@develop", "main").unwrap();
+        assert_eq!(repo, "aivcs/data-mesh");
+        assert_eq!(branch, "develop");
+
+        let (repo, branch) = parse_clone_target("aivcs/data-mesh", "main").unwrap();
+        assert_eq!(repo, "aivcs/data-mesh");
+        assert_eq!(branch, "main");
+
+        let (repo, branch) =
+            parse_clone_target("https://aivcsd.aivcs.io/aivcs/aivcs.git", "main").unwrap();
+        assert_eq!(repo, "aivcs/aivcs");
+        assert_eq!(branch, "main");
+    }
 
     #[test]
     fn tree_digest_is_deterministic() {
@@ -1074,7 +1158,7 @@ mod tests {
 
         let client = ForgeRemoteClient::new(Some(&server.uri()), None);
         let err = client
-            .publish(tmp.path(), "org/repo", "m", "a", "main")
+            .publish(tmp.path(), "org/repo", "m", "a", "main", None)
             .await
             .unwrap_err();
         assert!(err.to_string().contains("blob upload"));
@@ -1140,7 +1224,7 @@ mod tests {
 
         let client = ForgeRemoteClient::new(Some(&server.uri()), None);
         let got = client
-            .publish(tmp.path(), "org/repo", "m", "a", "main")
+            .publish(tmp.path(), "org/repo", "m", "a", "main", None)
             .await
             .unwrap();
         assert_eq!(got, server_commit);
@@ -1338,7 +1422,7 @@ mod tests {
 
         let client = ForgeRemoteClient::new(Some(&server.uri()), None);
         client
-            .publish(tmp.path(), "org/repo", "m", "a", "main")
+            .publish(tmp.path(), "org/repo", "m", "a", "main", None)
             .await
             .unwrap();
     }

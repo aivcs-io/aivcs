@@ -1,4 +1,4 @@
-//! `aivcs import` — one-shot GitHub read-only bootstrap → sovereign forge publish.
+//! `aivcs import` — one-shot GitHub read-only bootstrap → AIVCS forge publish.
 //!
 //! Mirrors the og-agent-forge `onboard` flow without a separate tool or temp scripts:
 //! shallow git clone (bootstrap only) → strip `.git` → publish → delete clone.
@@ -22,7 +22,7 @@ pub struct ImportOptions {
     pub remote: Option<String>,
     pub token: Option<String>,
     pub keep_dir: Option<PathBuf>,
-    pub sovereign_provenance: bool,
+    pub forge_provenance: bool,
 }
 
 pub fn parse_github_slug(source: &str) -> Result<(String, String)> {
@@ -86,8 +86,8 @@ pub async fn run_import(opts: ImportOptions) -> Result<()> {
     shallow_clone(&github_url, &opts.git_branch, &checkout)?;
 
     strip_git_metadata(&checkout)?;
-    if opts.sovereign_provenance {
-        patch_sovereign_provenance(&checkout, &repo, &github_slug)?;
+    if opts.forge_provenance {
+        patch_forge_provenance(&checkout, &repo, &github_slug)?;
     }
 
     let author = opts
@@ -97,7 +97,7 @@ pub async fn run_import(opts: ImportOptions) -> Result<()> {
 
     let client = ForgeRemoteClient::new(opts.remote.as_deref(), opts.token.as_deref());
     let commit_id = client
-        .publish(&checkout, &repo, &opts.message, &author, &opts.forge_branch)
+        .publish(&checkout, &repo, &opts.message, &author, &opts.forge_branch, Some(true))
         .await
         .context("forge publish after github bootstrap")?;
 
@@ -142,7 +142,7 @@ fn strip_git_metadata(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn patch_sovereign_provenance(root: &Path, forge_repo: &str, github_slug: &str) -> Result<()> {
+fn patch_forge_provenance(root: &Path, forge_repo: &str, github_slug: &str) -> Result<()> {
     let aivcs_url = format!("aivcs://{forge_repo}");
     let github_https = format!("https://github.com/{github_slug}");
     for rel in ["Cargo.toml", "propel.toml", "flake.nix", "README.md"] {

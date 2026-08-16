@@ -334,6 +334,7 @@ dependencies = [
  "data-mesh",
  "envelope-http-auth",
  "forge-cas",
+ "percent-encoding",
  "serde_json",
  "service-kit",
  "tokio",
