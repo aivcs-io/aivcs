@@ -281,6 +281,6 @@ mod tests {
             "0123456789abcdef0123456789abcdef01234567",
         )
         .unwrap();
-        assert_eq!(p.repository, "lornu-ai/infra-code");
+        assert_eq!(p.repository, format!("{}/infra-code", default_organization()));
     }
 }

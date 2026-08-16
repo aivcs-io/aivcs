@@ -107,6 +107,10 @@ pub trait ForgeStore: Send + Sync {
         commit: CommitRecord,
         branch_updates: Vec<(String, String)>,
     ) -> Result<AtomicPublishResult, ForgeError>;
+
+    // Repository privacy/visibility control
+    async fn is_repo_private(&self, repo: &str) -> Result<bool, ForgeError>;
+    async fn set_repo_private(&self, repo: &str, private: bool) -> Result<(), ForgeError>;
 }
 
 /// Atomic publish result
@@ -151,6 +155,7 @@ struct InMemoryState {
     cas: HashMap<String, Vec<u8>>,
     commits: HashMap<(String, String), CommitRecord>,
     branches: HashMap<(String, String), String>,
+    repo_private: HashMap<String, bool>,
 }
 
 pub struct InMemoryForgeStore {
@@ -316,6 +321,18 @@ impl ForgeStore for InMemoryForgeStore {
             blobs_stored: blobs.len(),
             branches_updated,
         })
+     }
+
+    async fn is_repo_private(&self, repo: &str) -> Result<bool, ForgeError> {
+        let state = self.state.read().map_err(|_| ForgeError::Backend("forge lock poisoned".into()))?;
+        // Default to private (fail-closed)
+        Ok(*state.repo_private.get(repo).unwrap_or(&true))
+    }
+
+    async fn set_repo_private(&self, repo: &str, private: bool) -> Result<(), ForgeError> {
+        let mut state = self.state.write().map_err(|_| ForgeError::Backend("forge lock poisoned".into()))?;
+        state.repo_private.insert(repo.to_string(), private);
+        Ok(())
     }
 }
 
@@ -335,6 +352,7 @@ impl DataMeshForgeStore {
     pub const BLOBS: &'static str = "forge_blobs";
     pub const COMMITS: &'static str = "forge_commits";
     pub const BRANCHES: &'static str = "forge_branches";
+    pub const REPOSITORIES: &'static str = "forge_repositories";
 
     pub fn new(client: data_mesh::Client) -> Self {
         Self { client }
@@ -574,6 +592,46 @@ impl ForgeStore for DataMeshForgeStore {
             branches_updated,
         })
     }
+
+    async fn is_repo_private(&self, repo: &str) -> Result<bool, ForgeError> {
+        let docs = self
+            .client
+            .query_documents(Self::REPOSITORIES, "repo_key", repo, Some(500))
+            .await
+            .map_err(Self::backend)?;
+
+        let latest = docs.into_iter().max_by_key(|doc| {
+            doc.get("updated_at_ms")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        });
+
+        if let Some(doc) = latest {
+            if let Some(private) = doc.get("private").and_then(serde_json::Value::as_bool) {
+                return Ok(private);
+            }
+        }
+        // Default to private (fail-closed)
+        Ok(true)
+    }
+
+    async fn set_repo_private(&self, repo: &str, private: bool) -> Result<(), ForgeError> {
+        let updated_at_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let doc = serde_json::json!({
+            "repo_key": repo,
+            "repo": repo,
+            "private": private,
+            "updated_at_ms": updated_at_ms,
+        });
+        self.client
+            .create_document(Self::REPOSITORIES, &doc)
+            .await
+            .map_err(Self::backend)?;
+        Ok(())
+    }
 }
 
 /// A durable `ForgeStore` backed by PostgreSQL via SQLx — a relational peer to
@@ -651,6 +709,9 @@ impl SqlxForgeStore {
                  head_commit_id TEXT   NOT NULL, \
                  updated_at_ms  BIGINT NOT NULL, \
                  PRIMARY KEY (repo, branch))",
+            "CREATE TABLE IF NOT EXISTS forge_repositories (\
+                 repo    TEXT PRIMARY KEY, \
+                 private BOOLEAN NOT NULL DEFAULT TRUE)",
         ] {
             sqlx::query(ddl)
                 .execute(&self.pool)
@@ -875,6 +936,37 @@ impl ForgeStore for SqlxForgeStore {
             branches_updated,
         })
     }
+
+    async fn is_repo_private(&self, repo: &str) -> Result<bool, ForgeError> {
+        let row = sqlx::query(
+            "SELECT private FROM forge_repositories WHERE repo = $1",
+        )
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Self::backend)?;
+        
+        if let Some(r) = row {
+            use sqlx::Row;
+            r.try_get::<bool, _>("private").map_err(Self::backend)
+        } else {
+            // Default to private (fail-closed)
+            Ok(true)
+        }
+    }
+
+    async fn set_repo_private(&self, repo: &str, private: bool) -> Result<(), ForgeError> {
+        sqlx::query(
+            "INSERT INTO forge_repositories (repo, private) VALUES ($1, $2) \
+             ON CONFLICT (repo) DO UPDATE SET private = EXCLUDED.private",
+        )
+        .bind(repo)
+        .bind(private)
+        .execute(&self.pool)
+        .await
+        .map_err(Self::backend)?;
+        Ok(())
+    }
 }
 
 /// The current branch head from an append-only set of branch-update docs: the
@@ -933,10 +1025,16 @@ pub fn router_with(forge: SharedForge) -> Router {
             "/api/v1/repos/:repo/branches/:branch",
             get(get_branch).put(update_branch),
         )
+        .route(
+            "/api/v1/repos/:owner/:repo/branches/:branch",
+            get(get_branch_double).put(update_branch_double),
+        )
         // Read surface (code-governance TDD_AIVCSD_LITE_READ_SURFACE, #1270).
         // Both are assemblers over the reads above — no new store.
         .route("/api/v1/repos/:repo", get(get_repo))
+        .route("/api/v1/repos/:owner/:repo", get(get_repo_double))
         .route("/api/v1/repos/:repo/source", get(get_repo_source))
+        .route("/api/v1/repos/:owner/:repo/source", get(get_repo_source_double))
         .with_state(forge)
 }
 
@@ -969,6 +1067,8 @@ struct CreateRepoRequest {
     name: Option<String>,
     #[serde(default)]
     org: Option<String>,
+    #[serde(default)]
+    private: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -1016,6 +1116,11 @@ async fn create_repo(
     // retrying build rail instead of forcing every caller to special-case 409.
     match forge.get_branch(&repo, "main").await {
         Ok(Some(head_commit_id)) => {
+            if let Some(private) = req.private {
+                if let Err(e) = forge.set_repo_private(&repo, private).await {
+                    return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+                }
+            }
             return (
                 StatusCode::OK,
                 Json(CreateRepoResponse {
@@ -1028,6 +1133,12 @@ async fn create_repo(
         }
         Ok(None) => {}
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    }
+
+    // Set repo privacy (default to private / fail-closed)
+    let private = req.private.unwrap_or(true);
+    if let Err(e) = forge.set_repo_private(&repo, private).await {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
 
     // Empty root commit: empty manifest, no parents. Identity hashed the same way
@@ -1243,6 +1354,23 @@ async fn get_repo_source(
         body,
     )
         .into_response()
+}
+
+async fn get_repo_double(
+    State(forge): State<SharedForge>,
+    Path((owner, repo)): Path<(String, String)>,
+) -> Response {
+    let repo_name = format!("{owner}/{repo}");
+    get_repo(State(forge), Path(repo_name)).await
+}
+
+async fn get_repo_source_double(
+    State(forge): State<SharedForge>,
+    Path((owner, repo)): Path<(String, String)>,
+    query: Query<SourceQuery>,
+) -> Response {
+    let repo_name = format!("{owner}/{repo}");
+    get_repo_source(State(forge), Path(repo_name), query).await
 }
 
 /// Pre-stream validation: everything that does NOT require fetching a blob.
@@ -1686,6 +1814,23 @@ async fn get_branch(
         ),
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
+}
+
+async fn get_branch_double(
+    State(forge): State<SharedForge>,
+    Path((owner, repo, branch)): Path<(String, String, String)>,
+) -> Response {
+    let repo_name = format!("{owner}/{repo}");
+    get_branch(State(forge), Path((repo_name, branch))).await
+}
+
+async fn update_branch_double(
+    State(forge): State<SharedForge>,
+    Path((owner, repo, branch)): Path<(String, String, String)>,
+    Json(req): Json<UpdateBranchRequest>,
+) -> Response {
+    let repo_name = format!("{owner}/{repo}");
+    update_branch(State(forge), Path((repo_name, branch)), Json(req)).await
 }
 
 #[cfg(test)]
@@ -2272,6 +2417,43 @@ mod tests {
             StatusCode::NOT_FOUND,
             "absent repo must 404, not 200 with an empty head"
         );
+    }
+
+    #[tokio::test]
+    async fn double_segment_routes_support_proxy_decoded_paths() {
+        let (app, cid) = seed_repo("lornu-ai/meta").await;
+
+        // Test GET /api/v1/repos/:owner/:repo
+        let (st, _, body) = call(&app, get_req("/api/v1/repos/lornu-ai/meta")).await;
+        assert_eq!(st, StatusCode::OK);
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["repo"], "lornu-ai/meta");
+        assert_eq!(v["head_commit_id"], cid);
+
+        // Test GET /api/v1/repos/:owner/:repo/branches/:branch
+        let (st, _, body) = call(&app, get_req("/api/v1/repos/lornu-ai/meta/branches/main")).await;
+        assert_eq!(st, StatusCode::OK);
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["repo"], "lornu-ai/meta");
+        assert_eq!(v["head_commit_id"], cid);
+
+        // Test PUT /api/v1/repos/:owner/:repo/branches/:branch
+        let (st, _, body) = call(
+            &app,
+            put_json(
+                "/api/v1/repos/lornu-ai/meta/branches/main",
+                json!({ "commit_id": cid }),
+            ),
+        )
+        .await;
+        assert_eq!(st, StatusCode::OK);
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["repo"], "lornu-ai/meta");
+        assert_eq!(v["head_commit_id"], cid);
+
+        // Test GET /api/v1/repos/:owner/:repo/source
+        let (st, _, _) = call(&app, get_req("/api/v1/repos/lornu-ai/meta/source")).await;
+        assert_eq!(st, StatusCode::OK);
     }
 
     /// The property the whole design exists for: same commit, same bytes.

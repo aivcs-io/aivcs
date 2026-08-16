@@ -1,4 +1,4 @@
-//! `aivcs oci publish` — Nix OCI → GAR (GitLab CI sovereign path).
+//! `aivcs oci publish` — Nix OCI → GAR (GitLab CI path).
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;

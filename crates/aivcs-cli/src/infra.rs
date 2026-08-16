@@ -1,4 +1,4 @@
-//! `aivcs infra` — sovereign infra reconcilers (no GitHub Actions).
+//! `aivcs infra` — infra reconcilers (no GitHub Actions).
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;

@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     // North-south gate. In-mesh callers are already authenticated by Linkerd and
     // are not asked for a second bearer (SM2) — this is for off-cluster traffic
     // arriving via aivcsd.aivcs.io, which has no mesh identity.
-    let auth_cfg = auth::AuthConfig::from_env();
+    let auth_cfg = auth::AuthConfig::from_env(Some(forge.clone()));
     if !auth_cfg.is_configured() {
         tracing::warn!(
             env = auth::TOKEN_ENV,

@@ -15,6 +15,7 @@ forge-cas.workspace = true
 data-mesh.workspace = true
 envelope-http-auth.workspace = true
 serde_json.workspace = true
+percent-encoding.workspace = true
 
 [dev-dependencies]
 tower.workspace = true
