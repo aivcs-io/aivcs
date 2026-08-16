@@ -4,7 +4,8 @@
 class Aivcs < Formula
   desc "AI Version Control System for Autonomous Agent Swarms"
   homepage "https://aivcs.io"
-  url "https://future.aivcs.io/aivcs/aivcs.git", branch: "main"
+  url "https://github.com/aivcs-io/aivcs/archive/refs/tags/v0.4.0.tar.gz"
+  sha256 "5402276d54f9d9110f41ba0832e53a2450312389ee4aaeaf04d359fe9bfa4976"
   version "0.4.0"
   license "Apache-2.0"
 
