@@ -1,6 +1,6 @@
 # Why We Do What We Do
 
-> Preserved from [issue #49](aivcs://stevedores-org/aivcs/issues/49).
+> Preserved from issue #49.
 > This is a strategic rationale document, not an active work item.
 
 ## 1. The Productivity Paradox in Agentic AI Engineering
@@ -9,7 +9,7 @@ The contemporary software engineering landscape is witnessing a paradigm shift o
 
 The core of this productivity paradox lies in the nature of the artifacts being managed. Traditional software repositories consist of source code—lightweight, text-based, and human-readable logic where the relationship between input and output is deterministic. In contrast, AI agent development involves a complex triad of artifacts: code (logic), model weights (massive binary state), and prompts (semantic instructions). Standard version control systems (VCS) treat these distinct entities with a uniform indifference, managing them all as files. This reductionist approach introduces significant inefficiencies. It forces developers to contend with "binary bloat," where repositories balloon into gigabytes of history that throttle network bandwidth and local disk I/O. It creates "semantic blindness," where a critical change in a system prompt is treated identically to a comment typo, obscuring the impact on agent behavior. Furthermore, it fails to address the "reproducibility crisis," where the non-deterministic nature of AI models is compounded by the fragility of development environments, leading to the infamous "it works on my machine" operational hazard.
 
-To resolve these bottlenecks, the organization must evaluate whether to optimize the incumbent infrastructure (Git/GitHub), adopt a specialized overlay (stevedores-org/aivcs), or engineer a bespoke solution using high-performance primitives (stevedores-org/gitoxide). This report provides an exhaustive analysis of these three strategic pathways, culminating in a recommendation for a hybrid architecture that leverages the raw performance of Rust and the hermetic reliability of Nix to construct a private, sovereign development forge.
+To resolve these bottlenecks, the organization must evaluate whether to optimize the incumbent infrastructure (Git/GitHub), adopt a specialized overlay (aivcs-io/aivcs), or engineer a bespoke solution using high-performance primitives (gitoxide). This report provides an exhaustive analysis of these three strategic pathways, culminating in a recommendation for a hybrid architecture that leverages the raw performance of Rust and the hermetic reliability of Nix to construct a private development forge.
 
 ### 1.1 The Binary Artifact Bottleneck
 
@@ -54,9 +54,9 @@ The cost structure of GitHub Enterprise also presents a scaling challenge. GitHu
 
 Ultimately, opting for GitHub Enterprise is a decision to accept a "productivity ceiling." It offers a polished, secure floor, but it prevents the Stevedores organization from optimizing the deep infrastructure layers where the most significant AI bottlenecks reside.
 
-## 3. Architecture B: The Engine — Stevedores-org/Gitoxide
+## 3. Architecture B: The Engine — Gitoxide
 
-The second option explores the feasibility of building a custom solution using stevedores-org/gitoxide. This project is a pure Rust implementation of the Git core, designed from the ground up to address the performance and safety deficiencies of the canonical C implementation.
+The second option explores the feasibility of building a custom solution using gitoxide. This project is a pure Rust implementation of the Git core, designed from the ground up to address the performance and safety deficiencies of the canonical C implementation.
 
 ### 3.1 The Technical Superiority of Rust
 
@@ -74,9 +74,9 @@ Constructing a full-feature "private GitHub" solely on top of gitoxide would req
 
 **The Strategic Pivot:** The true value of gitoxide lies not in replacing the *interface* of GitHub, but in replacing its *engine*. By using gitoxide as the backend processor, Stevedores can implement custom server-side hooks that are impossible on GitHub Enterprise.
 
-## 4. Architecture C: The Specialist — Stevedores-org/AIVCS
+## 4. Architecture C: The Specialist — AIVCS
 
-The third, and perhaps most intriguing, option is stevedores-org/aivcs. This is not merely a different Git client, but a "Layer 2" version control system designed specifically for the complexities of AI development. It integrates oxidizedgraph (a Rust implementation of LangGraph) and leverages the power of Nix and Attic for artifact management.
+The third, and perhaps most intriguing, option is aivcs-io/aivcs. This is not merely a different Git client, but a "Layer 2" version control system designed specifically for the complexities of AI development. It integrates oxidizedgraph (a Rust implementation of LangGraph) and leverages the power of Nix and Attic for artifact management.
 
 ### 4.1 The "Layer 2" Philosophy
 

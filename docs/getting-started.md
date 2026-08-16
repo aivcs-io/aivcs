@@ -15,7 +15,7 @@ For a reproducible **NixOS-WSL** environment (Windows + WSL2), see [docs/runbook
 
 ```bash
 # Clone
-git clone aivcs://stevedores-org/aivcs.git
+git clone https://github.com/aivcs-io/aivcs.git
 cd aivcs
 
 # Build release binary
@@ -97,7 +97,7 @@ aivcs release current my-agent
 
 # Autonomous branch → commit → PR in one shot (base defaults to develop)
 aivcs pr pipeline --branch feature/x --path docs/x.md --file ./x.md \
-  --message "docs: x" --title "feat: x" --body "…" --owner stevedores-org --repo aivcs
+  --message "docs: x" --title "feat: x" --body "…" --owner aivcs-io --repo aivcs
 ```
 
 ## Environment Variables
