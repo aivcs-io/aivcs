@@ -1,0 +1,21 @@
+[package]
+name = "aivcs-actions"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# AIVCS Actions v1 — the sovereign automation CONTRACT (Phase 1 of
+# FR_SANDLOT_BACKED_AIVCS_ACTIONS, code-governance#1119/#1276). This crate is the
+# versioned `AutomationIntent` envelope, the run-lifecycle state machine, and the
+# apps-middle-ware admission rules. It is deliberately transport- and
+# executor-free: no axum, no data-mesh, no sandlot types. apps-middle-ware
+# validates against it, Propel authorizes against it, Sandlot derives a job from
+# it — each consumes the same versioned unit (contract-versioning-baseline).
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true

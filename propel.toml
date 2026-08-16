@@ -1,0 +1,43 @@
+# propel.toml — Sovereign CI/CD for the aivcs engine binary.
+# Propel is the single execution plane (propel.aivcs.io); there is no GitHub
+# Actions / GitLab CI mirror. The deprecated .local-ci.toml and .gitlab-ci.yml
+# were removed. Checks run hermetically via `nix develop` so the locked
+# toolchain is used.
+
+[repo]
+name = "aivcs"
+owner = "lornu-ai"
+description = "aivcs — sovereign AI Version Control System engine (Rust CLI + aivcsd daemon)"
+
+[[checks]]
+name        = "fmt"
+description = "Rust formatting is clean"
+command     = ["nix", "develop", "-c", "cargo", "fmt", "--all", "--check"]
+# Generous: a cold `nix develop` builds the devShell before cargo runs.
+timeout_seconds = 600
+enabled     = true
+
+[[checks]]
+name        = "clippy"
+description = "Clippy lints (warnings denied)"
+command     = ["nix", "develop", "-c", "cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+timeout_seconds = 900
+enabled     = true
+
+[[checks]]
+name        = "test"
+description = "Workspace test suite"
+command     = ["nix", "develop", "-c", "cargo", "test", "--workspace"]
+timeout_seconds = 900
+enabled     = true
+
+[[checks]]
+name        = "secrets-scan"
+description = "Scan for hardcoded secrets"
+command     = ["nix", "develop", "-c", "gitleaks", "detect", "--no-banner", "--redact"]
+timeout_seconds = 600
+enabled     = true
+
+# OCI images (aivcs-cli, aivcsd) are built by oci-builds from this repo's flake
+# outputs (packages.x86_64-linux.aivcs-cli-image / aivcsd-image) — see
+# dockworker.toml [build].targets and lornu-ai/oci-builds.

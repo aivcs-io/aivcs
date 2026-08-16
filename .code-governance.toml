@@ -1,0 +1,25 @@
+# .code-governance.toml — aivcs adoption manifest
+
+[governance]
+source = "aivcs://lornu-ai/code-governance"
+ref = "main"
+
+[adoption]
+standards = [
+  "github-repository-baseline",
+  "ci-enforcement-baseline",
+  "rust-project-baseline",
+  "infra-code-iac-ownership",
+]
+
+[deployment]
+iac_repo = "infra-code"
+image_build_repo = "og-builds"
+
+[ci]
+required_checks = [
+  "cargo-test",
+]
+
+[references]
+readme_blurb = "Governed by sovereign code-governance."

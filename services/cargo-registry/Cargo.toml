@@ -1,0 +1,33 @@
+[package]
+name = "cargo-registry"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+sha2.workspace = true
+hex.workspace = true
+# Service-local: the registry is the only workspace member that talks to S3.
+# Object storage is AWS S3 (us-east-2), replacing the Cloudflare R2 buckets the
+# retired Worker used — code-governance TDD_RETIRE_CLOUDFLARE_WORKERS §3.2.
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1"
+# Repair reads the normalized Cargo.toml out of published .crate archives.
+flate2 = "1"
+tar = "0.4"
+toml.workspace = true
+
+[dev-dependencies]
+tower.workspace = true

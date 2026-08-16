@@ -1,0 +1,5 @@
+# Canonical Cloudflare Load Balancer pool names (git is source of truth).
+# Orphans like aks-lornu-hub (Random steering, legacy AKS hub) fail audit.
+lornu-ai-origins
+stevedores-org-origins
+aivcs-io-origins
