@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image to GHCR
+name: Build and Publish Docker Images (GHCR & Docker Hub)
 
 on:
   push:
@@ -27,18 +27,29 @@ jobs:
       - name: Build aivcs-cli
         run: cargo build --release -p aivcs-cli --bin aivcs
 
-      - name: Log in to the Container registry
+      - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub (if secrets configured)
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ secrets.DOCKERHUB_USERNAME != '' && 'aivcs/aivcs' || '' }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
