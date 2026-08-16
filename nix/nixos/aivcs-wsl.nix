@@ -14,10 +14,6 @@
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    extra-substituters = [ "https://nix-cache.lornu.ai/lornu" ];
-    extra-trusted-public-keys = [
-      "lornu-1:BdTDSJYXTq/AC/Z2S2MtluX2mjuN5Ew2IZCWQoeTyww="
-    ];
   };
 
   environment.systemPackages = [ aivcsPackage aivcsdPackage ];
