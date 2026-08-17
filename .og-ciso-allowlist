@@ -1,0 +1,43 @@
+# Reviewed detector exceptions for the public CLI source distribution.
+# These files implement credential handling, contain non-secret digest fixtures,
+# or use non-personal service/SSH identifiers. No credential values are present.
+crates/aivcs-cli/src/forge_import.rs
+crates/aivcs-cli/src/forge_login.rs
+crates/aivcs-cli/src/forge_remote.rs
+crates/aivcs-cli/src/main.rs
+crates/aivcs-core/src/deploy.rs
+crates/aivcs-core/src/deploy_runner.rs
+crates/aivcs-core/src/domain/ci_event.rs
+crates/aivcs-core/src/domain/eval.rs
+crates/aivcs-core/src/domain/mod.rs
+crates/aivcs-core/src/domain/snapshot.rs
+crates/aivcs-core/src/git.rs
+crates/aivcs-core/src/git_host.rs
+crates/aivcs-core/src/gitlab.rs
+crates/aivcs-core/src/hitl_controls/artifact.rs
+crates/aivcs-core/src/hitl_controls/checkpoint.rs
+crates/aivcs-core/src/hitl_controls/engine.rs
+crates/aivcs-core/src/hitl_controls/mod.rs
+crates/aivcs-core/src/lib.rs
+crates/aivcs-core/src/memory/decision.rs
+crates/aivcs-core/src/memory/mod.rs
+crates/aivcs-core/src/memory_context.rs
+crates/aivcs-core/src/multi_repo/mod.rs
+crates/aivcs-core/src/multi_repo/orchestrator.rs
+crates/aivcs-core/src/orchestration.rs
+crates/aivcs-core/src/planning_autonomy.rs
+crates/aivcs-core/src/quality_guardrails.rs
+crates/aivcs-core/src/release_registry.rs
+crates/aivcs-core/src/reporting.rs
+crates/aivcs-core/src/role_orchestration/error.rs
+crates/aivcs-core/src/role_orchestration/executor.rs
+crates/aivcs-core/src/self_healing.rs
+crates/aivcs-core/tests/**
+crates/nix-env-manager/src/attic.rs
+crates/nix-env-manager/src/error.rs
+crates/nix-env-manager/src/flake.rs
+crates/oxidized-state/src/handle.rs
+crates/oxidized-state/src/lib.rs
+crates/oxidized-state/src/schema.rs
+crates/oxidized-state/src/surreal_release_registry.rs
+crates/oxidized-state/tests/**

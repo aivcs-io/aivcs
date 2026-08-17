@@ -1,0 +1,8 @@
+target
+.git
+.cargo
+result
+results
+*.tmp
+*.log
+.aivcs

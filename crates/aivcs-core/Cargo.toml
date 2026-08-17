@@ -1,0 +1,54 @@
+[package]
+name = "aivcs-core"
+description = "Core library for AIVCS domain logic and orchestration"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["ai", "agents", "version-control", "workflow"]
+categories = ["development-tools"]
+
+[dependencies]
+# Internal crates
+oxidized-state.workspace = true
+
+# Stevedores ecosystem
+oxidizedgraph.workspace = true
+nix-env-manager.workspace = true
+semantic-rag-merge.workspace = true
+
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# GitHub
+octocrab.workspace = true
+
+# Utilities
+base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tempfile.workspace = true
+toml = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile.workspace = true

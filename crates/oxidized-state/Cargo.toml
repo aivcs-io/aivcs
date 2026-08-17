@@ -1,0 +1,45 @@
+[package]
+name = "oxidized-state"
+description = "Data-mesh-backed state persistence for AIVCS"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["ai", "agents", "version-control", "workflow"]
+categories = ["development-tools"]
+
+[dependencies]
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Data mesh
+data-mesh-client.workspace = true
+
+# Database
+surrealdb.workspace = true
+
+# Utilities
+chrono.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+dotenvy = "0.15"

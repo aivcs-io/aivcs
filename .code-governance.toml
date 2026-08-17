@@ -1,0 +1,16 @@
+[governance]
+source = "https://future.aivcs.io/aivcs/code-governance"
+ref = "main"
+
+[adoption]
+standards = ["github-repository-baseline", "rust-project-baseline"]
+
+[deployment]
+iac_repo = "external"
+image_build_repo = "external"
+
+[ci]
+required_checks = ["public-filter", "og-ciso-agent"]
+
+[references]
+readme_blurb = "Canonical governance and documentation live in aivcs/code-governance."

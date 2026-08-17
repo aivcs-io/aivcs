@@ -1,0 +1,42 @@
+[package]
+name = "aivcs-ci"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CI/CD pipeline execution and reporting for AIVCS"
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true, features = ["process", "time"] }
+async-trait.workspace = true
+futures.workspace = true
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Logging & Tracing
+tracing.workspace = true
+
+# Utilities
+chrono = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+sha2.workspace = true
+hex.workspace = true
+
+# AIVCS dependencies
+aivcs-core.workspace = true
+oxidized-state.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[[test]]
+name = "pipeline_integration"
+path = "tests/pipeline_integration.rs"
