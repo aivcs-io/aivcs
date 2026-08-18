@@ -1,0 +1,39 @@
+# cargo-audit configuration
+#
+# Only advisories that are provably NOT reachable in this workspace are ignored
+# here. Anything reachable stays visible, even when the fix lives upstream.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0235 — rkyv 0.7.46, out-of-bounds read on insufficient
+    # archive validation.
+    #
+    # NOT REACHABLE. rkyv enters the lockfile only as an optional dependency of
+    # rust_decimal (`rkyv = ["dep:rkyv"]`), and that feature is not enabled by
+    # anything in this workspace. Verified on v0.4.2 with:
+    #     cargo tree -i rkyv@0.7.46 --target all -e normal,build   # -> empty
+    # It is resolved into Cargo.lock but never compiled.
+    #
+    # Re-check if rust_decimal's `rkyv` or `rkyv-safe` feature is ever turned on;
+    # at that point this must be removed and the advisory addressed for real.
+    "RUSTSEC-2026-0235",
+]
+
+# Everything else that cargo-audit flagged on v0.4.2 is FIXED by bumping, not
+# suppressed. Applied via:
+#
+#   cargo update -p rustls-webpki -p quinn-proto -p ammonia -p crossbeam-epoch -p h2
+#
+#   ammonia         4.1.2   -> 4.1.4    RUSTSEC-2026-0193, -0213  (XSS)
+#   crossbeam-epoch 0.9.18  -> 0.9.20   RUSTSEC-2026-0204         (ptr deref)
+#   h2              0.4.13  -> 0.4.16   RUSTSEC-2026-0258
+#   quinn-proto     0.11.13 -> 0.11.17  RUSTSEC-2026-0037, -0185  (DoS)
+#   rustls-webpki   0.103.9 -> 0.103.14 RUSTSEC-2026-0049, -0098, -0099, -0104
+#
+# Result: 11 vulnerabilities -> 1 (the unreachable rkyv entry above).
+#
+# NOTE: the rustls-webpki 0.101.7 chain that affected v0.4.0 (legacy rustls 0.21
+# via the AWS SDK, reachable from services/cargo-registry) is NOT present in
+# v0.4.2 — that crate is not part of this release. If services/cargo-registry is
+# ever folded back in, re-audit: those three advisories were unfixable from the
+# repo and must not be silently ignored.

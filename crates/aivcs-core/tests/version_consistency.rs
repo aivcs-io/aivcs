@@ -44,6 +44,26 @@ fn crate_version(manifest_dir: &Path) -> String {
     );
 }
 
+/// Workspace members, read from the root manifest rather than hardcoded.
+///
+/// A hardcoded list silently breaks whenever the member set changes — which is
+/// exactly what happened when crates were removed for the public distribution,
+/// leaving this test asserting the existence of crates that had been stripped.
+fn workspace_members(root: &Path) -> Vec<String> {
+    let root_toml = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
+    let doc: toml::Value = root_toml.parse().unwrap();
+    doc["workspace"]["members"]
+        .as_array()
+        .expect("workspace.members must be an array")
+        .iter()
+        .map(|v| {
+            v.as_str()
+                .expect("workspace.members entries must be strings")
+                .to_string()
+        })
+        .collect()
+}
+
 #[test]
 fn all_crates_use_workspace_version() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -52,20 +72,19 @@ fn all_crates_use_workspace_version() {
         .parent()
         .unwrap();
 
-    let crates = [
-        "crates/aivcs-core",
-        "crates/aivcs-ci",
-        "crates/aivcs-cli",
-        "crates/aivcs-repo",
-        "crates/aivcs-auth",
-        "crates/aivcs-mcp-gateway",
-        "crates/oxidized-state",
-        "crates/nix-env-manager",
-        "crates/semantic-rag-merge",
-    ];
+    let crates = workspace_members(workspace_root);
+    assert!(
+        !crates.is_empty(),
+        "workspace.members is empty; nothing would be checked"
+    );
 
     for krate in &crates {
         let manifest_dir = workspace_root.join(krate);
+        assert!(
+            manifest_dir.join("Cargo.toml").is_file(),
+            "{} is listed in workspace.members but has no Cargo.toml",
+            krate
+        );
         let version = crate_version(&manifest_dir);
         assert_eq!(
             version, "workspace",
