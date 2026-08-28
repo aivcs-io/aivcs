@@ -21,7 +21,7 @@ const DEFAULT_SERVICE_PORT: u16 = 80;
 /// Public Forge v2 endpoint used by laptop clients.
 pub const EDGE_FORGE_URL: &str = "https://forge-v2.aivcs.io";
 
-pub const DEFAULT_ISSUER_URL: &str = "https://issuer.aivcs.io";
+pub const DEFAULT_ISSUER_URL: &str = "https://auth.aivcs.io";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ForgeSessionConfig {
@@ -218,7 +218,10 @@ pub async fn run_device_flow(issuer_url: &str) -> Result<String> {
     // 2. Request device authorization (RFC 8628 §3.1)
     let auth_resp = client
         .post(&device_endpoint)
-        .form(&[("client_id", "aivcs-cli"), ("scope", "openid profile")])
+        .form(&[
+            ("client_id", "aivcs-cli"),
+            ("scope", "repo:read repo:write cas:read cas:write"),
+        ])
         .send()
         .await
         .with_context(|| format!("send request to device authorization endpoint {device_endpoint}"))?;
