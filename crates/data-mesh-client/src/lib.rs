@@ -19,6 +19,9 @@ use serde_json::Value;
 /// In-cluster service — the default bind for consumers inside the mesh.
 pub const IN_CLUSTER_URL: &str = "http://data-mesh.data-mesh.svc.cluster.local";
 
+/// lornu-ai does not use `*.lornu.ai` for consumer binds (production-endpoints policy).
+const BANNED_CONSUMER_DOMAIN: &str = "lornu.ai";
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
@@ -66,9 +69,14 @@ fn read_secret_file(path: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// `*.lornu.ai` is the OSS/community org and must not be used for lornu-ai
+/// consumer binds. Returns an actionable error naming the right endpoints.
 fn validate_consumer_url(url: &str) -> Result<()> {
-    if url.trim().is_empty() {
-        return Err(Error::Config("DATA_MESH_URL must not be empty".to_string()));
+    if url.to_ascii_lowercase().contains(BANNED_CONSUMER_DOMAIN) {
+        return Err(Error::Config(format!(
+            "data-mesh consumers must not bind to lornu.ai URLs ({url}). \
+             Use {IN_CLUSTER_URL} (in-cluster) or set DATA_MESH_URL to a reachable data-mesh."
+        )));
     }
     Ok(())
 }
@@ -292,8 +300,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rejects_empty_consumer_urls() {
-        assert!(validate_consumer_url("").is_err());
+    fn rejects_banned_consumer_urls() {
+        assert!(validate_consumer_url("https://forbidden.lornu.ai").is_err());
         assert!(validate_consumer_url(IN_CLUSTER_URL).is_ok());
     }
 

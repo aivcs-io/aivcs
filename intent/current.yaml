@@ -1,0 +1,19 @@
+objective_id: OBJ-2026-SDF-002
+epic: "Dual ledger — link GitHub PRs to aivcs CommitId"
+constraints:
+  - "Git remains source of truth for deterministic code"
+  - "aivcs snapshots cognition only; no binary model weights in git"
+  - "CODE_COMMITTED A2A events must fire after durable commit"
+acceptance:
+  - "aivcs pr-note emits CommitId for PR body"
+  - "Reviewer can aivcs replay <CommitId> for agent session"
+  - "Pilot PRs include Intent-ID OBJ-2026-SDF-002"
+active_agents:
+  - builder
+  - auditor
+github:
+  issue: 220
+  branch: feat/sdf-intent-pilot
+aivcs:
+  branch: feat/sdf-intent-pilot
+updated_at: "2026-06-08T12:00:00Z"

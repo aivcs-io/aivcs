@@ -1,8 +1,8 @@
 [package]
-name = "data-mesh-client"
-version.workspace = true
+name = "data-fabric-client"
+version = "0.1.0"
 edition = "2021"
-authors = ["AIVCS Contributors"]
+authors = ["Lornu AI"]
 license = "Apache-2.0"
 
 [dependencies]

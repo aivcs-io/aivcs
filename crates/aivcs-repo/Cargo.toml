@@ -1,0 +1,12 @@
+[package]
+name = "aivcs-repo"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Small single-binary HTTP service that creates AIVCS code repositories (mesh + IdP + data-mesh)"
+
+[[bin]]
+name = "aivcs-repo"
+path = "src/main.rs"

@@ -8,16 +8,29 @@ members = [
     "crates/aivcs-core",
     "crates/aivcs-cli",
     "crates/aivcs-ci",
+    "crates/aivcs-backup",
+    "crates/aivcs-restore",
+    "crates/aivcs-backup-validator",
+    "crates/aivcs-runs",
+    "crates/service-kit",
     "crates/oxidized-state",
     "crates/nix-env-manager",
     "crates/semantic-rag-merge",
-    "crates/data-mesh-client",
+    "crates/aivcs-auth",
+    "crates/aivcs-mcp-gateway",
+    "crates/aivcs-issuegraph",
+    "crates/aivcs-repo",
+    "crates/data-mesh",
+    "crates/forge-cas",
+    "crates/envelope-http-auth",
+    "services/cargo-registry",
+    "services/aivcs-source-controller",
 ]
 
 [workspace.package]
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
-authors = ["AIVCS Contributors"]
+authors = ["Lornu AI"]
 license = "Apache-2.0"
 repository = "https://github.com/aivcs-io/aivcs"
 homepage = "https://aivcs.io"
@@ -82,12 +95,21 @@ jsonwebtoken = "9.3.0"
 tempfile = "3.10"
 
 # External crates (Stevedores ecosystem)
-oxidizedgraph = "0.2.0"
-data-mesh-client = { path = "crates/data-mesh-client" }
+oxidizedgraph = { version = "0.2", registry = "aivcs" }
+# Data gateway pillar clients (replaces data-fabric-client for Group 2)
+etcd-ref-client = { version = "0.1.0", registry = "aivcs" }
+dht-content-client = { version = "0.1.0", registry = "aivcs" }
+postgres-metadata-client = { version = "0.1.0", registry = "aivcs" }
+blob-store-client = { version = "0.1.0", registry = "aivcs" }
+# Legacy — prefer pillar clients above for new Group 2 code
+data-fabric-client = { version = "0.1", registry = "aivcs" }
+data-mesh = { path = "crates/data-mesh" }
+forge-cas = { path = "crates/forge-cas" }
 percent-encoding = "2.3"
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "compression-gzip"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros"] }
+envelope-http-auth = { path = "crates/envelope-http-auth" }
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1"
 kube = { version = "0.98", default-features = true, features = ["runtime", "derive"] }
@@ -97,11 +119,13 @@ wiremock = "0.6"
 
 
 # Internal crates
-aivcs-core = { version = "0.4.2", path = "crates/aivcs-core" }
-aivcs-ci = { version = "0.4.2", path = "crates/aivcs-ci" }
-oxidized-state = { version = "0.4.2", path = "crates/oxidized-state" }
-nix-env-manager = { version = "0.4.2", path = "crates/nix-env-manager" }
-semantic-rag-merge = { version = "0.4.2", path = "crates/semantic-rag-merge" }
+aivcs-core = { version = "0.4.4", path = "crates/aivcs-core" }
+aivcs-ci = { version = "0.4.4", path = "crates/aivcs-ci" }
+aivcs-runs = { version = "0.4.4", path = "crates/aivcs-runs" }
+service-kit = { version = "0.4.4", path = "crates/service-kit" }
+oxidized-state = { version = "0.4.4", path = "crates/oxidized-state" }
+nix-env-manager = { version = "0.4.4", path = "crates/nix-env-manager" }
+semantic-rag-merge = { version = "0.4.4", path = "crates/semantic-rag-merge" }
 
 [profile.release]
 opt-level = "z"

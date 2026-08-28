@@ -17,7 +17,7 @@ fn ci_workflow_has_concurrency_control() {
     let content = match ci_workflow_content() {
         Some(c) => c,
         None => {
-            println!("Skipping GitHub workflow test in sovereign Propel-only environment");
+            println!("Skipping GitHub workflow test in Propel-only environment");
             return;
         }
     };

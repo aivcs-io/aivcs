@@ -27,8 +27,12 @@ thiserror.workspace = true
 # Logging
 tracing.workspace = true
 
-# Data mesh
-data-mesh-client.workspace = true
+# Data gateway pillar clients (Group 2 cutover — replaces data-fabric-client)
+data-mesh.workspace = true
+etcd-ref-client.workspace = true
+dht-content-client.workspace = true
+postgres-metadata-client.workspace = true
+blob-store-client.workspace = true
 
 # Database
 surrealdb.workspace = true

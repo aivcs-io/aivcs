@@ -1,0 +1,17 @@
+[package]
+name = "aivcs-merge-emit"
+description = "HMAC-signed merge-event POST to og-builds#119 (DESIGN_BUILD_ON_CLEAN_MERGE B1)"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+sha2.workspace = true
+hex.workspace = true
+hmac.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "envelope-http-auth"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lornu AI"]
+license = "Apache-2.0"
+
+[dependencies]
+subtle = "2.5"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"

@@ -310,12 +310,12 @@ mod tests {
 
     #[test]
     fn parse_allowlist_skips_comments_and_blanks() {
-        let list = parse_allowlist("# canonical\nprimary-origins\n\nsecondary-origins\n");
+        let list = parse_allowlist("# canonical\nlornu-ai-origins\n\nstevedores-org-origins\n");
         assert_eq!(
             list,
             vec![
-                "primary-origins".to_string(),
-                "secondary-origins".to_string()
+                "lornu-ai-origins".to_string(),
+                "stevedores-org-origins".to_string()
             ]
         );
     }
@@ -323,34 +323,34 @@ mod tests {
     #[test]
     fn audit_finds_orphans_and_missing() {
         let allow = vec![
-            "primary-origins".to_string(),
-            "secondary-origins".to_string(),
+            "lornu-ai-origins".to_string(),
+            "aivcs-io-origins".to_string(),
         ];
         let pools = vec![
             CfPool {
                 id: "p1".into(),
-                name: "primary-origins".into(),
+                name: "lornu-ai-origins".into(),
                 description: String::new(),
                 origins: vec![],
             },
             CfPool {
                 id: "p2".into(),
-                name: "orphan-pool".into(),
+                name: "aks-lornu-hub".into(),
                 description: String::new(),
                 origins: vec![],
             },
         ];
         let lbs = vec![CfLoadBalancer {
             id: "lb1".into(),
-            name: "example.invalid".into(),
-            default_pools: vec!["primary-origins".into()],
+            name: "lornu.ai".into(),
+            default_pools: vec!["lornu-ai-origins".into()],
             fallback_pool: None,
         }];
         let report = build_audit_report(&allow, &pools, &lbs);
-        assert_eq!(report.canonical_pools, vec!["primary-origins"]);
+        assert_eq!(report.canonical_pools, vec!["lornu-ai-origins"]);
         assert_eq!(report.orphans.len(), 1);
-        assert_eq!(report.orphans[0].name, "orphan-pool");
+        assert_eq!(report.orphans[0].name, "aks-lornu-hub");
         assert!(!report.orphans[0].referenced_by_lb);
-        assert_eq!(report.missing_from_cf, vec!["secondary-origins"]);
+        assert_eq!(report.missing_from_cf, vec!["aivcs-io-origins"]);
     }
 }

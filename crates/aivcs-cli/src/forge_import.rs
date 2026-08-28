@@ -54,7 +54,7 @@ fn slug_from_path(path: &str) -> Result<(String, String)> {
     Ok((slug, url))
 }
 
-/// Default forge target for GitHub bootstrap: `example-org/<name>` (or any `*/<name>`)
+/// Default forge target for GitHub bootstrap: `lornu-ai/<name>` (or any `*/<name>`)
 /// → `aivcs/<name>`. GitHub org is not copied to the forge org.
 pub fn default_forge_slug_from_github(source: &str) -> Result<String> {
     let (github_slug, _) = parse_github_slug(source)?;
@@ -199,26 +199,27 @@ mod tests {
 
     #[test]
     fn parse_https_github_url() {
-        let (slug, url) = parse_github_slug("https://github.com/example-org/example-repo").unwrap();
-        assert_eq!(slug, "example-org/example-repo");
-        assert_eq!(url, "https://github.com/example-org/example-repo");
+        let (slug, url) =
+            parse_github_slug("https://github.com/lornu-ai/agent-envelope-ai").unwrap();
+        assert_eq!(slug, "lornu-ai/agent-envelope-ai");
+        assert_eq!(url, "https://github.com/lornu-ai/agent-envelope-ai");
     }
 
     #[test]
     fn parse_bare_slug() {
-        let (slug, _) = parse_github_slug("example-org/example-repo").unwrap();
-        assert_eq!(slug, "example-org/example-repo");
+        let (slug, _) = parse_github_slug("lornu-ai/og-crab").unwrap();
+        assert_eq!(slug, "lornu-ai/og-crab");
     }
 
     #[test]
     fn default_forge_slug_maps_github_to_aivcs_org() {
         assert_eq!(
-            default_forge_slug_from_github("https://github.com/example-org/example-repo").unwrap(),
-            "aivcs/example-repo"
+            default_forge_slug_from_github("https://github.com/lornu-ai/infra-code").unwrap(),
+            "aivcs/infra-code"
         );
         assert_eq!(
-            default_forge_slug_from_github("example-org/another-repo").unwrap(),
-            "aivcs/another-repo"
+            default_forge_slug_from_github("lornu-ai/sandlot").unwrap(),
+            "aivcs/sandlot"
         );
     }
 }

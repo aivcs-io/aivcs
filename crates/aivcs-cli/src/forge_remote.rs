@@ -18,7 +18,7 @@ use tokio::time::{sleep, Duration};
 use tracing::info;
 
 /// In-cluster forge URL — ClusterIP service port 80 → pod 8080 (no port-forward).
-pub const IN_CLUSTER_FORGE_URL: &str = "http://aivcsd-lite.aivcs-repo.svc.cluster.local";
+pub const IN_CLUSTER_FORGE_URL: &str = "http://forge-v2.forge-v2.svc.cluster.local:80";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestEntry {
@@ -377,6 +377,10 @@ impl ForgeRemoteClient {
         );
 
         // 3. Post commit — server computes commit_id; link parent when branch existed
+        // Keep the head we read: it is both the commit parent and the value the
+        // branch update is conditioned on, so a concurrent publisher that moved
+        // the branch in between is rejected instead of silently overwritten.
+        let expected_head = parent_head.clone();
         let parents: Vec<String> = parent_head.into_iter().collect();
         let phase_started = Instant::now();
         let commit_id = self
@@ -391,7 +395,7 @@ impl ForgeRemoteClient {
         );
 
         let phase_started = Instant::now();
-        self.update_branch(&enc_repo, branch, &commit_id)
+        self.update_branch(&enc_repo, branch, &commit_id, expected_head.as_deref())
             .await
             .context("branch PUT failed")?;
         info!(
@@ -590,10 +594,42 @@ impl ForgeRemoteClient {
     }
 
     /// Update a branch head to point to a new commit.
-    async fn update_branch(&self, enc_repo: &str, branch: &str, commit_id: &str) -> Result<()> {
+    ///
+    /// `expected` is the head observed before the publish began. It is sent as a
+    /// precondition so the forge rejects the update if anything moved the branch
+    /// in the meantime -- a publish writes the whole tree, so a last-writer-wins
+    /// update silently deletes every file the other publisher added.
+    ///
+    /// Set `AIVCS_PUBLISH_FORCE=1` to send no precondition and overwrite whatever
+    /// is there. That is the old behaviour and it discards concurrent work.
+    async fn update_branch(
+        &self,
+        enc_repo: &str,
+        branch: &str,
+        commit_id: &str,
+        expected: Option<&str>,
+    ) -> Result<()> {
         let forge = self.forge_url()?;
         let branch_url = format!("{forge}/api/v1/repos/{enc_repo}/branches/{branch}");
-        let branch_payload = serde_json::json!({ "commit_id": commit_id });
+        let force = std::env::var("AIVCS_PUBLISH_FORCE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let branch_payload = if force {
+            tracing::warn!(
+                branch,
+                "AIVCS_PUBLISH_FORCE set: publishing with no precondition; \
+                 a concurrent publisher's work will be discarded"
+            );
+            serde_json::json!({ "commit_id": commit_id })
+        } else {
+            match expected {
+                Some(head) => {
+                    serde_json::json!({ "commit_id": commit_id, "expected_head": head })
+                }
+                // No head observed => the branch did not exist when we started.
+                None => serde_json::json!({ "commit_id": commit_id, "expect_absent": true }),
+            }
+        };
 
         let resp = self
             .http
@@ -605,6 +641,24 @@ impl ForgeRemoteClient {
             .context("branch PUT network error")?;
 
         let status = resp.status();
+        if status == reqwest::StatusCode::CONFLICT {
+            let body = resp.text().await.unwrap_or_default();
+            let actual = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|v| {
+                    v.get("actual_head")
+                        .and_then(|h| h.as_str())
+                        .map(String::from)
+                })
+                .unwrap_or_else(|| "unknown".into());
+            return Err(anyhow!(
+                "branch '{branch}' moved while this publish was running.\n  \
+                 expected head: {}\n  actual head:   {actual}\n\
+                 Nothing was written. Re-fetch the branch, restage your files onto \
+                 the new head, and publish again. Blobs already uploaded are reused.",
+                expected.unwrap_or("(new branch)")
+            ));
+        }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(anyhow!("branch PUT failed: HTTP {status}: {body}"));
@@ -863,7 +917,7 @@ pub fn parse_clone_target(url_or_slug: &str, branch_override: &str) -> Result<(S
         "https://aivcs.io/",
         "https://www.aivcs.io/",
         "https://future.aivcs.io/",
-        "https://aivcsd.aivcs.io/",
+        "https://forge-v2.aivcs.io/",
     ] {
         if let Some(rest) = slug.strip_prefix(prefix) {
             slug = rest;
@@ -1177,7 +1231,7 @@ mod tests {
         assert_eq!(branch, "main");
 
         let (repo, branch) =
-            parse_clone_target("https://aivcsd.aivcs.io/aivcs/aivcs.git", "main").unwrap();
+            parse_clone_target("https://forge-v2.aivcs.io/aivcs/aivcs.git", "main").unwrap();
         assert_eq!(repo, "aivcs/aivcs");
         assert_eq!(branch, "main");
     }

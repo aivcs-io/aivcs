@@ -178,6 +178,11 @@ fn map_event(event: &Event) -> (String, serde_json::Value) {
             ),
         },
         EventKind::Custom { name, payload } => (format!("Custom:{name}"), payload.clone()),
+        EventKind::ExecutionControl(ec) => (
+            "execution_control".into(),
+            serde_json::to_value(ec).unwrap_or_else(|_| json!({})),
+        ),
+        _ => ("unknown".into(), json!({})),
     }
 }
 

@@ -29,3 +29,17 @@ target/
 .aivcs/*
 .aivcs/db/
 .aivcs/db/*
+
+# Private/Internal files ignored in public repository
+propel.toml
+.code-governance.toml
+task.json
+policy/
+tools/lci/
+docs/adr/
+docs/proposals/
+docs/research/
+docs/BRANCH_CLEANUP.md
+docs/CRATES_IO_RELEASE.md
+docs/dual_ledger_guide.md
+docs/mcp-auth-guide.md

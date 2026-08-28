@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use chrono::Utc;
-use data_mesh_client::Client as MeshClient;
+use data_mesh::Client as MeshClient;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
@@ -133,7 +133,7 @@ impl CloudConfig {
 
     pub fn from_env() -> std::result::Result<Self, String> {
         Err(
-            "legacy direct DB access removed — configure DATA_MESH_URL and DATA_MESH_TENANT_ID"
+            "legacy direct DB access removed — configure DATA_FABRIC_URL and DATA_MESH_TENANT_ID"
                 .into(),
         )
     }
@@ -257,7 +257,7 @@ impl SurrealHandle {
     #[instrument(skip(_config))]
     pub async fn setup_cloud(_config: CloudConfig) -> Result<Self> {
         Err(StateError::Connection(
-            "legacy direct DB access removed — configure DATA_MESH_URL and DATA_MESH_TENANT_ID"
+            "legacy direct DB access removed — configure DATA_FABRIC_URL and DATA_MESH_TENANT_ID"
                 .into(),
         ))
     }

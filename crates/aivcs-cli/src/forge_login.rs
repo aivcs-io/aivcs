@@ -1,8 +1,10 @@
 //! `aivcs login` — authenticate to the AIVCS forge access service.
 //!
-//! Off-cluster callers use the stable authenticated edge. Kubernetes workloads
-//! may opt into Service DNS. Neither mode requires `kubectl port-forward`.
+//! Off-cluster callers use the stable authenticated edge (`https://…`) or
+//! `--tailscale` for subnet-routed cluster Service IPs. Kubernetes workloads
+//! may opt into Service DNS. None of these require `kubectl port-forward`.
 
+use crate::forge_url_policy::{forge_service_url, validate_forge_url};
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -11,12 +13,13 @@ use std::process::Command;
 use std::time::Duration;
 
 const DEFAULT_CONTEXT: &str = "aivcs-core";
-const DEFAULT_NAMESPACE: &str = "aivcs-repo";
-const DEFAULT_SERVICE: &str = "aivcsd-lite";
-const DEFAULT_SECRET: &str = "aivcsd-lite-token";
+const DEFAULT_NAMESPACE: &str = "forge-v2";
+const DEFAULT_SERVICE: &str = "forge-v2";
+const DEFAULT_SECRET: &str = "forge-v2-token";
 const DEFAULT_SECRET_KEY: &str = "token";
 const DEFAULT_SERVICE_PORT: u16 = 80;
-pub const EDGE_FORGE_URL: &str = "https://aivcsd.aivcs.io";
+/// Public Forge v2 endpoint used by laptop clients.
+pub const EDGE_FORGE_URL: &str = "https://forge-v2.aivcs.io";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ForgeSessionConfig {
@@ -32,6 +35,8 @@ pub struct ForgeSessionConfig {
 pub struct LoginOptions {
     pub url: Option<String>,
     pub in_cluster: bool,
+    pub tailscale: bool,
+    pub tls: bool,
     pub context: String,
     pub namespace: String,
     pub service: String,
@@ -47,6 +52,8 @@ impl Default for LoginOptions {
         Self {
             url: None,
             in_cluster: false,
+            tailscale: false,
+            tls: false,
             context: DEFAULT_CONTEXT.to_string(),
             namespace: DEFAULT_NAMESPACE.to_string(),
             service: DEFAULT_SERVICE.to_string(),
@@ -67,12 +74,8 @@ pub fn aivcs_home() -> PathBuf {
     }
 }
 
-pub fn forge_service_url(service: &str, namespace: &str, port: u16) -> String {
-    if port == 80 {
-        format!("http://{service}.{namespace}.svc.cluster.local")
-    } else {
-        format!("http://{service}.{namespace}.svc.cluster.local:{port}")
-    }
+pub fn forge_service_url_for_login(service: &str, namespace: &str, port: u16, tls: bool) -> String {
+    forge_service_url(service, namespace, port, tls)
 }
 
 fn login_target(opts: &LoginOptions) -> Result<(String, &'static str)> {
@@ -83,22 +86,30 @@ fn login_target(opts: &LoginOptions) -> Result<(String, &'static str)> {
         .filter(|url| !url.is_empty())
     {
         let normalized = url.trim_end_matches('/').to_string();
-        if !(normalized.starts_with("https://")
-            || normalized.starts_with("http://127.0.0.1")
-            || normalized.starts_with("http://localhost")
-            || normalized.ends_with(".svc.cluster.local"))
-        {
-            return Err(anyhow!(
-                "forge URL must use HTTPS; HTTP is allowed only for loopback or Kubernetes Service DNS"
-            ));
-        }
-        return Ok((normalized, "explicit"));
+        validate_forge_url(&normalized, opts.tailscale)?;
+        let method = if opts.tailscale {
+            "tailscale_explicit"
+        } else {
+            "explicit"
+        };
+        return Ok((normalized, method));
+    }
+
+    if opts.tailscale {
+        let cluster_ip = resolve_service_cluster_ip(&opts.context, &opts.namespace, &opts.service)?;
+        let normalized = format!("http://{cluster_ip}");
+        validate_forge_url(&normalized, true)?;
+        return Ok((normalized, "tailscale_subnet"));
     }
 
     if opts.in_cluster {
         return Ok((
-            forge_service_url(&opts.service, &opts.namespace, opts.port),
-            "cluster_dns",
+            forge_service_url(&opts.service, &opts.namespace, opts.port, opts.tls),
+            if opts.tls {
+                "cluster_dns_tls"
+            } else {
+                "cluster_dns"
+            },
         ));
     }
 
@@ -127,7 +138,8 @@ pub async fn run_login(opts: LoginOptions) -> Result<()> {
     probe_forge(&forge_url, &token).await.with_context(|| {
         format!(
             "forge access service unreachable at {forge_url}. \
-             Off-cluster callers use {EDGE_FORGE_URL}; workloads use `aivcs login --in-cluster`."
+             Off-cluster: {EDGE_FORGE_URL} or `aivcs login --tailscale`; \
+             in-cluster: `aivcs login --in-cluster`; workloads: `AIVCS_FORGE_URL`."
         )
     })?;
 
@@ -148,7 +160,7 @@ pub async fn run_login(opts: LoginOptions) -> Result<()> {
 
     println!("Logged in to forge at {forge_url}");
     println!("  method:    {login_method}");
-    if opts.in_cluster {
+    if opts.in_cluster || opts.tailscale {
         println!("  context:   {}", opts.context);
         println!("  namespace: {}", opts.namespace);
         println!("  service:   {}", opts.service);
@@ -217,6 +229,40 @@ fn resolve_token(opts: &LoginOptions) -> Result<String> {
         &opts.secret,
         &opts.secret_key,
     )
+}
+
+fn resolve_service_cluster_ip(context: &str, namespace: &str, service: &str) -> Result<String> {
+    let output = Command::new("kubectl")
+        .args([
+            "--context",
+            context,
+            "-n",
+            namespace,
+            "get",
+            "svc",
+            service,
+            "-o",
+            "jsonpath={.spec.clusterIP}",
+        ])
+        .output()
+        .context("kubectl not found or failed to run")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow!(
+            "kubectl get svc {service} in {namespace} failed: {stderr}. \
+             Ensure Tailscale subnet routes are accepted and the service exists."
+        ));
+    }
+
+    let cluster_ip = String::from_utf8(output.stdout)
+        .context("clusterIP jsonpath output")?
+        .trim()
+        .to_string();
+    if cluster_ip.is_empty() || cluster_ip == "None" {
+        return Err(anyhow!("service {namespace}/{service} has no ClusterIP"));
+    }
+    Ok(cluster_ip)
 }
 
 fn kubectl_secret_token(context: &str, namespace: &str, secret: &str, key: &str) -> Result<String> {
@@ -306,16 +352,16 @@ mod tests {
     #[test]
     fn forge_service_url_default_port_omits_suffix() {
         assert_eq!(
-            forge_service_url("aivcsd-lite", "aivcs-repo", 80),
-            "http://aivcsd-lite.aivcs-repo.svc.cluster.local"
+            forge_service_url("aivcs-forge-pg", "aivcs-forge-pg", 80, false),
+            "http://aivcs-forge-pg.aivcs-forge-pg.svc.cluster.local"
         );
     }
 
     #[test]
     fn forge_service_url_non_default_port() {
         assert_eq!(
-            forge_service_url("aivcsd-lite", "aivcs-repo", 8080),
-            "http://aivcsd-lite.aivcs-repo.svc.cluster.local:8080"
+            forge_service_url("aivcs-forge-pg", "aivcs-forge-pg", 8080, false),
+            "http://aivcs-forge-pg.aivcs-forge-pg.svc.cluster.local:8080"
         );
     }
 
@@ -323,7 +369,7 @@ mod tests {
     fn in_cluster_constant_uses_service_port_not_container_port() {
         assert_eq!(
             IN_CLUSTER_FORGE_URL,
-            "http://aivcsd-lite.aivcs-repo.svc.cluster.local"
+            "http://aivcs-forge-pg.aivcs-forge-pg.svc.cluster.local"
         );
     }
 
@@ -341,8 +387,50 @@ mod tests {
             ..LoginOptions::default()
         };
         let (url, method) = login_target(&opts).unwrap();
-        assert_eq!(url, "http://aivcsd-lite.aivcs-repo.svc.cluster.local");
+        assert_eq!(
+            url,
+            "http://aivcs-forge-pg.aivcs-forge-pg.svc.cluster.local"
+        );
         assert_eq!(method, "cluster_dns");
+    }
+
+    #[test]
+    fn in_cluster_tls_uses_https() {
+        let opts = LoginOptions {
+            in_cluster: true,
+            tls: true,
+            port: 443,
+            ..LoginOptions::default()
+        };
+        let (url, method) = login_target(&opts).unwrap();
+        assert_eq!(
+            url,
+            "https://aivcs-forge-pg.aivcs-forge-pg.svc.cluster.local"
+        );
+        assert_eq!(method, "cluster_dns_tls");
+    }
+
+    #[test]
+    fn explicit_https_tailnet_url_is_allowed() {
+        let opts = LoginOptions {
+            url: Some("https://aivcs-forge-pg.tailbab6b0.ts.net".into()),
+            ..LoginOptions::default()
+        };
+        let (url, method) = login_target(&opts).unwrap();
+        assert_eq!(url, "https://aivcs-forge-pg.tailbab6b0.ts.net");
+        assert_eq!(method, "explicit");
+    }
+
+    #[test]
+    fn tailscale_explicit_http_private_ip() {
+        let opts = LoginOptions {
+            url: Some("http://172.20.176.231".into()),
+            tailscale: true,
+            ..LoginOptions::default()
+        };
+        let (url, method) = login_target(&opts).unwrap();
+        assert_eq!(url, "http://172.20.176.231");
+        assert_eq!(method, "tailscale_explicit");
     }
 
     #[test]
@@ -357,7 +445,7 @@ mod tests {
     #[test]
     fn config_roundtrip() {
         let cfg = ForgeSessionConfig {
-            forge_url: forge_service_url(DEFAULT_SERVICE, DEFAULT_NAMESPACE, 80),
+            forge_url: forge_service_url(DEFAULT_SERVICE, DEFAULT_NAMESPACE, 80, false),
             kube_context: DEFAULT_CONTEXT.to_string(),
             kube_namespace: DEFAULT_NAMESPACE.to_string(),
             kube_service: DEFAULT_SERVICE.to_string(),

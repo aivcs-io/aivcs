@@ -11,3 +11,7 @@ bench-build:
 # See tools/bench/aivcs-cli.sh for env overrides (AIVCS, BENCH_OUT, BENCH_RUNS).
 bench: bench-build
 	./tools/bench/aivcs-cli.sh
+
+# Public release pipeline with strict version verification and supply-chain gates.
+release-public:
+	@./scripts/release-public.sh $(VERSION)

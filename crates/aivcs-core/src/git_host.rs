@@ -1,4 +1,4 @@
-//! Git forge detection — GitHub today, GitLab for sovereign / post-GitHub CI.
+//! Git forge detection — GitHub today, GitLab for / post-GitHub CI.
 //!
 //! `owner/repo` CLI flags map to GitHub repos and to GitLab project paths
 //! (`group/subgroup/project` encoded as `owner/repo` when nested groups are flat).
@@ -132,21 +132,18 @@ mod tests {
     #[test]
     fn parse_gitlab_remote_accepts_https_and_ssh() {
         assert_eq!(
-            parse_gitlab_remote("https://gitlab.com/example-org/example-repo.git"),
-            Some((GitHost::GitLab, "example-org/example-repo".to_string()))
+            parse_gitlab_remote("https://gitlab.com/lornu-ai/infra-code.git"),
+            Some((GitHost::GitLab, "lornu-ai/infra-code".to_string()))
         );
         assert_eq!(
-            parse_gitlab_remote("git@gitlab.com:example-org/nested/example-repo.git"),
-            Some((
-                GitHost::GitLab,
-                "example-org/nested/example-repo".to_string()
-            ))
+            parse_gitlab_remote("git@gitlab.com:lornu-ai/nested/infra-code.git"),
+            Some((GitHost::GitLab, "lornu-ai/nested/infra-code".to_string()))
         );
     }
 
     #[test]
     fn nested_gitlab_path_is_valid() {
-        assert!(is_forge_project_path("example-org/nested/example-repo"));
+        assert!(is_forge_project_path("lornu-ai/nested/infra-code"));
         assert!(!is_forge_project_path("single-segment"));
     }
 }

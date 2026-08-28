@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn rejects_shell_metacharacters_in_ks_name() {
-        assert!(validate_kustomization_name("cloudflare-lb-example").is_ok());
+        assert!(validate_kustomization_name("cloudflare-lb-lornu-ai").is_ok());
         assert!(validate_kustomization_name("bad;name").is_err());
     }
 

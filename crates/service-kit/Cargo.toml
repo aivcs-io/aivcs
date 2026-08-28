@@ -1,0 +1,17 @@
+[package]
+name = "service-kit"
+description = "Shared bootstrap for apps-middle-ware Rust services: ops endpoints, config, tracing."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tower.workspace = true

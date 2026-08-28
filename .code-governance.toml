@@ -1,16 +1,25 @@
+# .code-governance.toml — aivcs adoption manifest
+
 [governance]
-source = "https://future.aivcs.io/aivcs/code-governance"
+source = "aivcs://lornu-ai/code-governance"
 ref = "main"
 
 [adoption]
-standards = ["github-repository-baseline", "rust-project-baseline"]
+standards = [
+  "github-repository-baseline",
+  "ci-enforcement-baseline",
+  "rust-project-baseline",
+  "infra-code-iac-ownership",
+]
 
 [deployment]
-iac_repo = "external"
-image_build_repo = "external"
+iac_repo = "infra-code"
+image_build_repo = "og-builds"
 
 [ci]
-required_checks = ["public-filter", "og-ciso-agent"]
+required_checks = [
+  "cargo-test",
+]
 
 [references]
-readme_blurb = "Canonical governance and documentation live in aivcs/code-governance."
+readme_blurb = "Governed by code-governance."

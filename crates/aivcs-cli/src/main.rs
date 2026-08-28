@@ -7,6 +7,7 @@ mod cognition;
 mod forge_import;
 mod forge_login;
 mod forge_remote;
+mod forge_url_policy;
 mod infra;
 mod oci;
 
@@ -84,28 +85,36 @@ enum Commands {
         #[command(subcommand)]
         action: Option<LoginAction>,
 
-        /// Forge access URL override (HTTPS unless loopback or Kubernetes DNS)
+        /// Forge access URL override (HTTPS always allowed; HTTP for loopback, cluster DNS, or with --tailscale)
         #[arg(long, conflicts_with = "in_cluster")]
         url: Option<String>,
 
         /// Use Kubernetes Service DNS instead of the default edge service
-        #[arg(long, default_value_t = false)]
+        #[arg(long, default_value_t = false, conflicts_with = "tailscale")]
         in_cluster: bool,
+
+        /// Reach forge over Tailscale subnet routes (RFC1918 / 100.64.0.0/10) or explicit --url https://*.ts.net
+        #[arg(long, default_value_t = false, conflicts_with = "in_cluster")]
+        tailscale: bool,
+
+        /// Use HTTPS for in-cluster Service DNS (port 443 when --port is omitted)
+        #[arg(long, default_value_t = false)]
+        tls: bool,
 
         /// kubectl context (default: aivcs-core)
         #[arg(long, default_value = "aivcs-core")]
         context: String,
 
-        /// Forge service namespace (default: aivcs-repo)
-        #[arg(long, default_value = "aivcs-repo")]
+        /// Forge service namespace (default: forge-v2)
+        #[arg(long, default_value = "forge-v2")]
         namespace: String,
 
-        /// Forge service name (default: aivcsd-lite)
-        #[arg(long, default_value = "aivcsd-lite")]
+        /// Forge service name (default: forge-v2)
+        #[arg(long, default_value = "forge-v2")]
         service: String,
 
-        /// Secret holding the forge bearer token (default: aivcsd-lite-token)
-        #[arg(long, default_value = "aivcsd-lite-token")]
+        /// Secret holding the forge bearer token (default: forge-v2-token)
+        #[arg(long, default_value = "forge-v2-token")]
         secret: String,
 
         /// Secret data key for the bearer token (default: token)
@@ -119,7 +128,7 @@ enum Commands {
 
     /// Import a read-only GitHub repo to the AIVCS forge (og-agent-forge onboard)
     Import {
-        /// GitHub URL or org/repo slug (e.g. example-org/example-repo)
+        /// GitHub URL or org/repo slug (e.g. lornu-ai/agent-envelope-ai)
         source: String,
 
         /// Forge repo slug (default: `aivcs/<name>` from GitHub `*/<name>`)
@@ -159,7 +168,7 @@ enum Commands {
         keep: Option<PathBuf>,
 
         /// Rewrite github.com/… provenance to aivcs:// in Cargo.toml, propel.toml, flake.nix
-        #[arg(long, default_value_t = true, alias = "sovereign-provenance")]
+        #[arg(long, default_value_t = true, alias = "AIVCS-provenance")]
         forge_provenance: bool,
     },
 
@@ -800,6 +809,8 @@ async fn main() -> Result<()> {
             action,
             url,
             in_cluster,
+            tailscale,
+            tls,
             context,
             namespace,
             service,
@@ -812,6 +823,8 @@ async fn main() -> Result<()> {
                 forge_login::run_login(forge_login::LoginOptions {
                     url,
                     in_cluster,
+                    tailscale,
+                    tls,
                     context,
                     namespace,
                     service,

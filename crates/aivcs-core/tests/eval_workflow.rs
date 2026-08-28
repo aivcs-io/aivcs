@@ -21,7 +21,7 @@ macro_rules! require_content {
         match workflow_content() {
             Some(c) => c,
             None => {
-                println!("Skipping GitHub eval workflow test in sovereign Propel-only environment");
+                println!("Skipping GitHub eval workflow test in Propel-only environment");
                 return;
             }
         }

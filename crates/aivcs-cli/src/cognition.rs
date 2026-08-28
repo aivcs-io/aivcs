@@ -1,6 +1,6 @@
 //! Single-Turn Cognition & Brains Provider for AIVCS CLI
 //!
-//! Connects `aivcs` to a configured cognition endpoint.
+//! Connects `aivcs` directly to `brains` (http://brains.aivcs-core.svc.cluster.local:8080 or local endpoint)
 //! to generate single-turn decisive action steps over data-mesh context.
 
 use anyhow::{anyhow, Context, Result};

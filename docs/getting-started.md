@@ -12,10 +12,27 @@
 For a reproducible **NixOS-WSL** environment (Windows + WSL2), see [docs/runbooks/nixos-wsl.md](runbooks/nixos-wsl.md).
 
 ## Installation
+ 
+### Option A: Homebrew (macOS & Linux)
+```bash
+brew install aivcs-io/tap/aivcs
+```
 
+### Option B: Prebuilt Binaries (GitHub Releases)
+```bash
+# macOS (arm64)
+curl -sL https://github.com/aivcs-io/aivcs/releases/download/v0.4.4/aivcs-darwin-arm64 -o ~/.local/bin/aivcs
+chmod +x ~/.local/bin/aivcs
+
+# Linux (x86_64)
+curl -sL https://github.com/aivcs-io/aivcs/releases/download/v0.4.4/aivcs-linux-x86_64 -o ~/.local/bin/aivcs
+chmod +x ~/.local/bin/aivcs
+```
+
+### Option C: Build from Source
 ```bash
 # Clone
-git clone https://github.com/aivcs-io/aivcs.git
+aivcs clone aivcs://aivcs/aivcs ./aivcs
 cd aivcs
 
 # Build release binary
@@ -77,8 +94,8 @@ more command families — confirm the live surface with `aivcs --help` and
 |------|----------|---------------|
 | Versioning | `init`, `snapshot`, `restore`, `log`, `branch`, `merge` | this walkthrough |
 | Run inspection | `replay-artifact --run <run-id>`, `diff spec`, `diff run`, `diff-runs --run-a/--run-b` | `aivcs <cmd> --help` |
-| Releases | `release promote` / `current` / `history` / `rollback` | `aivcs release --help` |
-| CI | `ci run --stages fmt,check,clippy,test [--no-cache] [--fix]` | `aivcs ci run --help` |
+| Releases | `release promote` / `current` / `history` / `rollback` | [release-workflow runbook](./runbooks/release-workflow.md) |
+| CI | `ci run --stages fmt,check,clippy,test [--no-cache] [--fix]` | [aivcs-ci runbook](./runbooks/aivcs-ci.md) |
 | Reports | `report cross-org --objective <id> --output <file>` | `aivcs report cross-org --help` |
 | GitHub PRs | `pr open` / `branch` / `commit` / `pipeline`, `pr-note` | [zero-touch PR pipeline](./runbooks/zero-touch-pr-pipeline.md) |
 
@@ -118,5 +135,8 @@ aivcs pr pipeline --branch feature/x --path docs/x.md --file ./x.md \
 
 - [Architecture overview](./architecture.md)
 - [Local development runbook](./runbooks/local-development.md)
+- [Database configuration runbook](./runbooks/database-configuration.md)
+- [Release workflow runbook](./runbooks/release-workflow.md)
+- [AIVCS CI (`aivcs ci run`) runbook](./runbooks/aivcs-ci.md)
 - [Zero-touch PR pipeline runbook](./runbooks/zero-touch-pr-pipeline.md)
 - [CI troubleshooting runbook](./runbooks/ci-troubleshooting.md)
