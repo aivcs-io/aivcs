@@ -240,14 +240,15 @@ pub async fn run_device_flow(issuer_url: &str) -> Result<String> {
     println!();
     println!("=== AIVCS Device Authorization Flow ===");
     println!("  User Code:        {}", auth_data.user_code);
-    if let Some(ref complete_url) = auth_data.verification_uri_complete {
-        println!("  Verification URL: {complete_url}");
-    } else if let Some(ref verify_url) = auth_data.verification_uri {
+    if let Some(ref verify_url) = auth_data.verification_uri {
         println!("  Verification URL: {verify_url}");
+    } else if let Some(ref complete_url) = auth_data.verification_uri_complete {
+        println!("  Verification URL: {complete_url}");
     }
     println!();
     println!(
-        "Please open the verification URL in your browser and approve code {}.",
+        "Please open {} in your browser and enter code {}.",
+        auth_data.verification_uri.as_deref().unwrap_or(issuer_url),
         auth_data.user_code
     );
     println!("Waiting for authorization...");
