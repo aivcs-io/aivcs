@@ -21,7 +21,7 @@ const DEFAULT_SERVICE_PORT: u16 = 80;
 /// Public Forge v2 endpoint used by laptop clients.
 pub const EDGE_FORGE_URL: &str = "https://forge-v2.aivcs.io";
 
-pub const DEFAULT_ISSUER_URL: &str = "https://auth.aivcs.io";
+pub const DEFAULT_ISSUER_URL: &str = "https://issuer.aivcs.io";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ForgeSessionConfig {
@@ -240,15 +240,14 @@ pub async fn run_device_flow(issuer_url: &str) -> Result<String> {
     println!();
     println!("=== AIVCS Device Authorization Flow ===");
     println!("  User Code:        {}", auth_data.user_code);
-    if let Some(ref verify_url) = auth_data.verification_uri {
-        println!("  Verification URL: {verify_url}");
-    } else if let Some(ref complete_url) = auth_data.verification_uri_complete {
+    if let Some(ref complete_url) = auth_data.verification_uri_complete {
         println!("  Verification URL: {complete_url}");
+    } else if let Some(ref verify_url) = auth_data.verification_uri {
+        println!("  Verification URL: {verify_url}?user_code={}", auth_data.user_code);
     }
     println!();
     println!(
-        "Please open {} in your browser and enter code {}.",
-        auth_data.verification_uri.as_deref().unwrap_or(issuer_url),
+        "Please open the Verification URL in your browser to approve code {}.",
         auth_data.user_code
     );
     println!("Waiting for authorization...");
