@@ -21,6 +21,8 @@ const DEFAULT_SERVICE_PORT: u16 = 80;
 /// Public Forge v2 endpoint used by laptop clients.
 pub const EDGE_FORGE_URL: &str = "https://forge-v2.aivcs.io";
 
+pub const DEFAULT_ISSUER_URL: &str = "https://issuer.aivcs.io";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ForgeSessionConfig {
     pub forge_url: String,
@@ -34,6 +36,8 @@ pub struct ForgeSessionConfig {
 #[derive(Debug, Clone)]
 pub struct LoginOptions {
     pub url: Option<String>,
+    pub issuer: Option<String>,
+    pub device: bool,
     pub in_cluster: bool,
     pub tailscale: bool,
     pub tls: bool,
@@ -51,6 +55,8 @@ impl Default for LoginOptions {
     fn default() -> Self {
         Self {
             url: None,
+            issuer: None,
+            device: false,
             in_cluster: false,
             tailscale: false,
             tls: false,
@@ -129,11 +135,212 @@ pub fn resolve_forge_url_from_config() -> Option<String> {
         .or_else(|| load_forge_config().map(|c| c.forge_url))
 }
 
+#[derive(Debug, Deserialize)]
+struct OidcDiscovery {
+    #[serde(default)]
+    device_authorization_endpoint: Option<String>,
+    #[serde(default)]
+    token_endpoint: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeviceAuthResponse {
+    device_code: String,
+    user_code: String,
+    verification_uri: Option<String>,
+    verification_uri_complete: Option<String>,
+    #[serde(default = "default_device_expires_in")]
+    expires_in: u64,
+    #[serde(default = "default_device_interval")]
+    interval: u64,
+}
+
+fn default_device_expires_in() -> u64 {
+    900
+}
+
+fn default_device_interval() -> u64 {
+    5
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenSuccessResponse {
+    access_token: Option<String>,
+    id_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenErrorResponse {
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+pub async fn run_device_flow(issuer_url: &str) -> Result<String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .context("build HTTP client for device authorization flow")?;
+
+    let normalized_issuer = issuer_url.trim_end_matches('/');
+
+    // 1. Discover endpoints from .well-known/openid-configuration
+    let disco_url = format!("{normalized_issuer}/.well-known/openid-configuration");
+    let (device_endpoint, token_endpoint) = if let Ok(resp) = client.get(&disco_url).send().await {
+        if resp.status().is_success() {
+            if let Ok(disco) = resp.json::<OidcDiscovery>().await {
+                (
+                    disco
+                        .device_authorization_endpoint
+                        .unwrap_or_else(|| format!("{normalized_issuer}/oauth/device_authorization")),
+                    disco
+                        .token_endpoint
+                        .unwrap_or_else(|| format!("{normalized_issuer}/oauth/token")),
+                )
+            } else {
+                (
+                    format!("{normalized_issuer}/oauth/device_authorization"),
+                    format!("{normalized_issuer}/oauth/token"),
+                )
+            }
+        } else {
+            (
+                format!("{normalized_issuer}/oauth/device_authorization"),
+                format!("{normalized_issuer}/oauth/token"),
+            )
+        }
+    } else {
+        (
+            format!("{normalized_issuer}/oauth/device_authorization"),
+            format!("{normalized_issuer}/oauth/token"),
+        )
+    };
+
+    // 2. Request device authorization (RFC 8628 §3.1)
+    let auth_resp = client
+        .post(&device_endpoint)
+        .form(&[("client_id", "aivcs-cli"), ("scope", "openid profile")])
+        .send()
+        .await
+        .with_context(|| format!("send request to device authorization endpoint {device_endpoint}"))?;
+
+    if !auth_resp.status().is_success() {
+        let status = auth_resp.status();
+        let body = auth_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("Device authorization failed ({status}): {body}"));
+    }
+
+    let auth_data: DeviceAuthResponse = auth_resp
+        .json()
+        .await
+        .context("parse device authorization response JSON")?;
+
+    println!();
+    println!("=== AIVCS Device Authorization Flow ===");
+    println!("  User Code:        {}", auth_data.user_code);
+    if let Some(ref complete_url) = auth_data.verification_uri_complete {
+        println!("  Verification URL: {complete_url}");
+    } else if let Some(ref verify_url) = auth_data.verification_uri {
+        println!("  Verification URL: {verify_url}");
+    }
+    println!();
+    println!(
+        "Please open the verification URL in your browser and approve code {}.",
+        auth_data.user_code
+    );
+    println!("Waiting for authorization...");
+
+    let mut poll_interval = if auth_data.interval == 0 {
+        5
+    } else {
+        auth_data.interval
+    };
+    let deadline = std::time::Instant::now() + Duration::from_secs(auth_data.expires_in);
+
+    // 3. Poll token endpoint (RFC 8628 §3.4)
+    loop {
+        if std::time::Instant::now() >= deadline {
+            return Err(anyhow!(
+                "Device authorization request timed out after {} seconds",
+                auth_data.expires_in
+            ));
+        }
+
+        tokio::time::sleep(Duration::from_secs(poll_interval)).await;
+
+        let token_resp = client
+            .post(&token_endpoint)
+            .form(&[
+                (
+                    "grant_type",
+                    "urn:ietf:params:oauth:grant-type:device_code",
+                ),
+                ("client_id", "aivcs-cli"),
+                ("device_code", &auth_data.device_code),
+            ])
+            .send()
+            .await;
+
+        let resp = match token_resp {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::debug!("Token poll network error: {e}");
+                continue;
+            }
+        };
+
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+
+        if status.is_success() {
+            if let Ok(success) = serde_json::from_str::<TokenSuccessResponse>(&body) {
+                if let Some(token) = success.access_token.or(success.id_token) {
+                    if !token.trim().is_empty() {
+                        return Ok(token.trim().to_string());
+                    }
+                }
+            }
+            return Err(anyhow!(
+                "Received successful response from token endpoint but could not extract token: {body}"
+            ));
+        }
+
+        if let Ok(err_payload) = serde_json::from_str::<TokenErrorResponse>(&body) {
+            let err_code = err_payload.error.as_deref().unwrap_or("");
+            let err_desc = err_payload.error_description.as_deref().unwrap_or("");
+
+            if err_code == "authorization_pending" || err_desc.contains("authorization_pending") {
+                continue;
+            } else if err_code == "slow_down" || err_desc.contains("slow_down") {
+                poll_interval += 5;
+                continue;
+            } else if err_code == "access_denied" || err_desc.contains("access_denied") {
+                return Err(anyhow!("Authorization request was denied by the user."));
+            } else if err_code == "expired_token" || err_desc.contains("expired_token") {
+                return Err(anyhow!(
+                    "Device authorization code expired. Please run `aivcs login --device` again."
+                ));
+            } else {
+                return Err(anyhow!("Device token error ({err_code}): {err_desc}"));
+            }
+        }
+    }
+}
+
 pub async fn run_login(opts: LoginOptions) -> Result<()> {
     fs::create_dir_all(aivcs_home()).context("create ~/.aivcs")?;
 
     let (forge_url, login_method) = login_target(&opts)?;
-    let token = resolve_token(&opts)?;
+    let (token, effective_method) = if opts.device {
+        let env_issuer = std::env::var("AIVCS_ISSUER_URL").ok();
+        let issuer_url = opts
+            .issuer
+            .as_deref()
+            .or(env_issuer.as_deref())
+            .unwrap_or(DEFAULT_ISSUER_URL);
+        (run_device_flow(issuer_url).await?, "device_flow")
+    } else {
+        (resolve_token(&opts)?, login_method)
+    };
 
     probe_forge(&forge_url, &token).await.with_context(|| {
         format!(
@@ -151,7 +358,7 @@ pub async fn run_login(opts: LoginOptions) -> Result<()> {
         kube_context: opts.context.clone(),
         kube_namespace: opts.namespace.clone(),
         kube_service: opts.service.clone(),
-        login_method: login_method.to_string(),
+        login_method: effective_method.to_string(),
         logged_in_at: chrono::Utc::now().to_rfc3339(),
     };
     let config_json = serde_json::to_string_pretty(&config)?;
@@ -159,7 +366,7 @@ pub async fn run_login(opts: LoginOptions) -> Result<()> {
         .with_context(|| format!("write {}", opts.config_file.display()))?;
 
     println!("Logged in to forge at {forge_url}");
-    println!("  method:    {login_method}");
+    println!("  method:    {effective_method}");
     if opts.in_cluster || opts.tailscale {
         println!("  context:   {}", opts.context);
         println!("  namespace: {}", opts.namespace);

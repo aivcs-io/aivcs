@@ -85,6 +85,14 @@ enum Commands {
         #[command(subcommand)]
         action: Option<LoginAction>,
 
+        /// Authenticate using RFC 8628 OAuth 2.0 Device Authorization Flow (for headless / CI environments)
+        #[arg(long, default_value_t = false)]
+        device: bool,
+
+        /// OIDC / Token Issuer URL (default: https://issuer.aivcs.io or AIVCS_ISSUER_URL)
+        #[arg(long)]
+        issuer: Option<String>,
+
         /// Forge access URL override (HTTPS always allowed; HTTP for loopback, cluster DNS, or with --tailscale)
         #[arg(long, conflicts_with = "in_cluster")]
         url: Option<String>,
@@ -807,6 +815,8 @@ async fn main() -> Result<()> {
         Commands::Init { path } => cmd_init(&handle, &path).await,
         Commands::Login {
             action,
+            device,
+            issuer,
             url,
             in_cluster,
             tailscale,
@@ -822,6 +832,8 @@ async fn main() -> Result<()> {
             None => {
                 forge_login::run_login(forge_login::LoginOptions {
                     url,
+                    issuer,
+                    device,
                     in_cluster,
                     tailscale,
                     tls,
