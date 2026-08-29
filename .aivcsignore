@@ -1,0 +1,41 @@
+# Canonical AIVCS AIVCS Ignore File (.aivcsignore)
+# Standard: code-governance/standards/vcs-gitignore-baseline.md
+
+# AIVCS Internal & Agent State
+.aivcs/
+.git/
+.github/
+.og/
+.og-crab/
+.local-ci-cache/
+.tmp/
+.tmp-bin/
+*.log
+
+# Build Artifacts & Package Caches
+target/
+dist/
+build/
+result/
+result-*
+node_modules/
+.cache/
+
+# Environment Variables & Secrets (Never commit)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.secret
+
+# IDE & Editor Metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System Files
+.DS_Store
+Thumbs.db

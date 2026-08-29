@@ -1,0 +1,67 @@
+import { Link, useLocation } from "react-router-dom";
+
+interface NavItem { label: string; href: string; external?: boolean; }
+interface NavSection { title: string; items: NavItem[]; }
+
+const DOCS = "https://docs.stevedores.org";
+const navigation: NavSection[] = [
+  { title: "Overview", items: [
+    { label: "Introduction", href: "/" },
+    { label: "Getting Started", href: "/getting-started" },
+    { label: "Architecture", href: "/architecture" },
+  ]},
+  { title: "Guides", items: [
+    { label: "Commands", href: "/guides/commands" },
+    { label: "Branching & Merging", href: "/guides/branching" },
+    { label: "Environment", href: "/guides/environment" },
+  ]},
+  { title: "Crates", items: [
+    { label: "aivcs-core", href: "/crates/core" },
+    { label: "oxidized-state", href: "/crates/state" },
+    { label: "nix-env-manager", href: "/crates/nix" },
+    { label: "semantic-rag-merge", href: "/crates/merge" },
+  ]},
+  { title: "Ecosystem Docs", items: [
+    { label: "oxidizedgraph", href: `${DOCS}/oxidizedgraph`, external: true },
+    { label: "oxidizedRAG", href: `${DOCS}/oxidizedRAG`, external: true },
+    { label: "oxidizedMLX", href: `${DOCS}/oxidizedMLX`, external: true },
+  ]},
+];
+
+export default function Sidebar() {
+  const { pathname } = useLocation();
+  return (
+    <nav className="w-64 shrink-0 bg-zinc-900/60 border-r border-zinc-800 fixed top-0 left-0 bottom-0 overflow-y-auto hidden lg:flex flex-col">
+      <div className="px-5 pt-6 pb-4 border-b border-zinc-800/60">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span className="text-violet-500 font-mono font-bold text-lg">&#x2693;</span>
+          <span className="font-bold text-lg tracking-tight text-zinc-100">aivcs</span>
+        </Link>
+      </div>
+      <div className="flex-1 py-3">
+        {navigation.map((s) => (
+          <div key={s.title} className="mb-1">
+            <div className="px-5 py-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">{s.title}</div>
+            {s.items.map((item) => {
+              const active = !item.external && pathname === item.href;
+              const cls = `flex items-center gap-2 px-5 py-[7px] text-[13px] border-l-2 transition-all ${active ? "border-violet-500 text-violet-400 bg-violet-500/[0.06] font-medium" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"}`;
+              return item.external ? (
+                <a key={item.href} href={item.href} className={cls}>{item.label}<span className="ml-auto text-[10px] text-zinc-600">&nearr;</span></a>
+              ) : (
+                <Link key={item.href} to={item.href} className={cls}>
+                  {s.title === "Crates" && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />}
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-4 border-t border-zinc-800/60 text-xs text-zinc-500 flex gap-3">
+        <a href="aivcs://stevedores-org/aivcs" className="hover:text-violet-400 transition">GitHub</a>
+        <span className="text-zinc-700">&middot;</span>
+        <a href="https://stevedores.org" className="hover:text-violet-400 transition">stevedores.org</a>
+      </div>
+    </nav>
+  );
+}

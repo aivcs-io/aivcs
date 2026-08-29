@@ -1,0 +1,22 @@
+# Cargo configuration for aivcs.
+#
+# AIVCS cargo registry — sparse index at registry.aivcs.io, auth via
+# CARGO_REGISTRIES_AIVCS_TOKEN (ESO/GSM — never committed). Required because
+# `oxidized-state` consumes `data-mesh-client` from the registry rather than
+# from github.com; without this block the workspace does not parse at all:
+#   registry index was not found in any configuration: `aivcs`
+#
+# Mirrors lornu-ai/apps-middle-ware, lornu-ai/agent-orchestrate-ai and
+# lornu-ai/a2a-mcp.
+
+[registries.aivcs]
+index = "sparse+https://registry.aivcs.io/"
+credential-provider = ["cargo:token"]
+
+# OCI builds use the mirrored sparse source exclusively. The complete lockfile
+# closure must be published before enabling air-gapped builds.
+[source.crates-io]
+# replace-with = "aivcs"
+
+[source.aivcs]
+registry = "sparse+https://registry.aivcs.io/"

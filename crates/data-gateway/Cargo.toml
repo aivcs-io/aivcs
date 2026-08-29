@@ -1,0 +1,39 @@
+[package]
+name = "data-gateway"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum = { version = "0.7", features = ["macros", "json"] }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+    "uuid",
+    "chrono",
+    "json",
+] }
+uuid = { workspace = true, features = ["v4", "v7", "serde"] }
+chrono = { workspace = true, features = ["serde"] }
+sha2 = "0.10"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+surrealdb = { workspace = true }
+
+[[example]]
+name = "bench_dfg_v3_vs_postgres"
+path = "examples/bench_dfg_v3_vs_postgres.rs"

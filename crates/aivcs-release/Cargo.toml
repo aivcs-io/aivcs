@@ -1,0 +1,27 @@
+[package]
+name = "aivcs-release"
+description = "Portable public release pipeline for the aivcs CLI (semver lockstep + binary audit)"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "aivcs-release-public"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+hex.workspace = true
+regex = "1.10"
+serde.workspace = true
+sha2.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

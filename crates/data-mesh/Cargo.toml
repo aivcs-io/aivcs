@@ -1,0 +1,18 @@
+[package]
+name = "data-mesh"
+description = "Workspace binding to the data-mesh standard offering — the only persistence path for apps-middle-ware services (offering-facade; no direct SurrealDB)."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+percent-encoding.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

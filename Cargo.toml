@@ -1,0 +1,150 @@
+[workspace]
+resolver = "2"
+
+# Sovereign AI Version Control System (AIVCS)
+# Agent-First Content Addressable Storage, State Mesh & Execution Engine
+
+members = [
+    "crates/aivcs-core",
+    "crates/aivcs-cli",
+    "crates/aivcs-release",
+    "crates/aivcs-ci",
+    "crates/aivcs-backup",
+    "crates/aivcs-restore",
+    "crates/aivcs-backup-validator",
+    "crates/aivcs-runs",
+    "crates/service-kit",
+    "crates/oxidized-state",
+    "crates/nix-env-manager",
+    "crates/semantic-rag-merge",
+    "crates/aivcs-auth",
+    "crates/aivcs-mcp-gateway",
+    "crates/aivcs-issuegraph",
+    "crates/aivcs-repo",
+    "crates/data-mesh",
+    "crates/forge-cas",
+    "crates/envelope-http-auth",
+    "crates/data-gateway",
+    "crates/brains-provider-router",
+    "services/cargo-registry",
+    "services/aivcs-source-controller",
+]
+
+[workspace.package]
+version = "0.5.2"
+edition = "2021"
+authors = ["Lornu AI"]
+license = "Apache-2.0"
+repository = "https://github.com/aivcs-io/aivcs"
+homepage = "https://aivcs.io"
+documentation = "https://docs.aivcs.io"
+
+[workspace.dependencies]
+# Async Runtime
+tokio = { version = "1.35", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Compression & Archives
+flate2 = "1.0"
+tar = "0.4"
+
+# Cryptography & Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# AWS SDK (for S3 backups)
+rusoto_core = "0.48"
+rusoto_s3 = "0.48"
+
+# Time & Date
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Database - SurrealDB
+surrealdb = { version = "2.1", default-features = false, features = ["kv-mem", "kv-surrealkv", "protocol-ws", "rustls"] }
+
+# HTTP Server
+axum = "0.7"
+
+# HTTP Client
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# GitHub API integration
+octocrab = "0.41"
+
+# Utilities
+base64 = "0.22"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+hmac = "0.12"
+jsonwebtoken = "9.3.0"
+
+# Testing
+tempfile = "3.10"
+
+# External crates (Stevedores ecosystem)
+oxidizedgraph = { version = "0.2", registry = "aivcs" }
+# Data gateway pillar clients (replaces data-fabric-client for Group 2)
+etcd-ref-client = { version = "0.1.0", registry = "aivcs" }
+dht-content-client = { version = "0.1.0", registry = "aivcs" }
+postgres-metadata-client = { version = "0.1.0", registry = "aivcs" }
+blob-store-client = { version = "0.1.0", registry = "aivcs" }
+# Legacy — prefer pillar clients above for new Group 2 code
+data-fabric-client = { version = "0.1", registry = "aivcs" }
+data-mesh = { path = "crates/data-mesh" }
+forge-cas = { path = "crates/forge-cas" }
+percent-encoding = "2.3"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "compression-gzip"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros"] }
+envelope-http-auth = { path = "crates/envelope-http-auth" }
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1"
+kube = { version = "0.98", default-features = true, features = ["runtime", "derive"] }
+k8s-openapi = { version = "0.24", features = ["v1_32"] }
+schemars = "0.8"
+wiremock = "0.6"
+
+
+# Internal crates
+aivcs-core = { version = "0.5.2", path = "crates/aivcs-core" }
+aivcs-ci = { version = "0.5.2", path = "crates/aivcs-ci" }
+aivcs-runs = { version = "0.5.2", path = "crates/aivcs-runs" }
+service-kit = { version = "0.5.2", path = "crates/service-kit" }
+oxidized-state = { version = "0.5.2", path = "crates/oxidized-state" }
+nix-env-manager = { version = "0.5.2", path = "crates/nix-env-manager" }
+semantic-rag-merge = { version = "0.5.2", path = "crates/semantic-rag-merge" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+# CI-optimized profile: balance build speed with correctness (no LTO, more codegen-units)
+[profile.ci]
+inherits = "test"
+opt-level = 1
+debug = false
+codegen-units = 16
+incremental = false

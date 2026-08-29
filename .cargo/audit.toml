@@ -1,0 +1,52 @@
+# cargo-audit configuration
+#
+# Only advisories that are provably NOT reachable, or that have no fixed upgrade
+# available upstream, are ignored here. Prefer `cargo update` before adding
+# ignores.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0235 — rkyv 0.7.46, out-of-bounds read on insufficient
+    # archive validation.
+    #
+    # NOT REACHABLE. rkyv enters the lockfile only as an optional dependency of
+    # rust_decimal (`rkyv = ["dep:rkyv"]`), and that feature is not enabled by
+    # anything in this workspace. Verified with:
+    #     cargo tree -i rkyv@0.7.46 --target all -e normal,build   # -> empty
+    # It is resolved into Cargo.lock but never compiled.
+    #
+    # Re-check if rust_decimal's `rkyv` or `rkyv-safe` feature is ever turned on;
+    # at that point this must be removed and the advisory addressed for real.
+    "RUSTSEC-2026-0235",
+
+    # RUSTSEC-2023-0071 — rsa 0.9.x Marvin timing sidechannel.
+    # No fixed upgrade is published upstream. Revisit when rsa ships a fix or
+    # dependents migrate off the crate.
+    "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2026-0258 (h2 0.3.27) and RUSTSEC-2026-0098/0099/0104
+    # (rustls-webpki 0.101.7) enter via aws-smithy-http-client's legacy
+    # hyper-0.14 / rustls-0.21 connector path (also rusoto_core). Latest
+    # aws-config / aws-sdk-s3 still enable that path by default; there is no
+    # semver-compatible bump of h2@0.3 or rustls-webpki@0.101 that clears them.
+    # Cleared the fixable parallel lines (h2@0.4, rustls-webpki@0.103, ammonia,
+    # crossbeam-epoch, quinn-proto) via cargo update. Re-check when smithy
+    # drops hyper-0.14 from default features.
+    "RUSTSEC-2026-0258",
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+    "RUSTSEC-2026-0104",
+]
+
+# Fixable advisories applied on this tip via:
+#
+#   cargo update -p ammonia -p crossbeam-epoch -p quinn-proto \
+#                -p h2@0.4.13 -p rustls-webpki@0.103.9 \
+#                -p aws-smithy-http-client -p aws-config -p aws-sdk-s3
+#
+#   ammonia         4.1.2   -> 4.1.4
+#   crossbeam-epoch 0.9.18  -> 0.9.20
+#   h2              0.4.13  -> 0.4.19
+#   quinn-proto     0.11.13 -> 0.11.17
+#   rustls-webpki   0.103.9 -> 0.103.15
+#   aws-config / smithy / s3 bumped within major 1

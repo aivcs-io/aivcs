@@ -1,0 +1,24 @@
+[package]
+name = "brains-provider-router"
+version = "0.5.2"
+edition = "2021"
+description = "Sovereign Brains Provider Router: Intelligent dynamic routing, hedging, and token telemetry across in-cluster EKS (llmkube) and hybrid DGX GPU clusters"
+
+[dependencies]
+axum = { version = "0.7.9", features = ["macros"] }
+tokio = { version = "1.38", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tower = { version = "0.4", features = ["util", "timeout", "load-shed"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+futures-util = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1.10", features = ["v4", "v7", "serde"] }
+dashmap = "5.5"
+bytes = "1.6"
+http = "1.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

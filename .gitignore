@@ -1,0 +1,46 @@
+# Universal ignore
+target/
+.DS_Store
+*.swp
+*.bak
+*~
+
+# Environment & local secrets
+.env
+.env.local
+.env.*.local
+*.local
+*.local.*
+
+# IDE / editor artifacts
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Build & transient directories
+.tmp/
+.local-ci-cache/
+.og-crab/
+*.log
+
+# AIVCS transient files & database
+.aivcs/
+.aivcs/*
+.aivcs/db/
+.aivcs/db/*
+
+# Private/Internal files ignored in public repository
+propel.toml
+.code-governance.toml
+task.json
+policy/
+tools/lci/
+docs/adr/
+docs/proposals/
+docs/research/
+docs/BRANCH_CLEANUP.md
+docs/CRATES_IO_RELEASE.md
+docs/dual_ledger_guide.md
+docs/mcp-auth-guide.md
+.env.example

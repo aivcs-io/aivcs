@@ -1,0 +1,13 @@
+{
+  "name": "@aivcs/playwright-e2e",
+  "version": "0.4.4",
+  "private": true,
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.0",
+    "typescript": "^7.0.2"
+  }
+}

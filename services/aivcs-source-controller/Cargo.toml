@@ -1,0 +1,27 @@
+[package]
+name = "aivcs-source-controller"
+description = "Watch AivcsRepository CRs; on main head-advance emit signed merge events to og-builds#119"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "aivcs-source-controller"
+path = "src/main.rs"
+
+[dependencies]
+aivcs-merge-emit = { path = "../../crates/aivcs-merge-emit" }
+anyhow.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+reqwest.workspace = true
+futures.workspace = true
+kube.workspace = true
+k8s-openapi.workspace = true
+schemars.workspace = true

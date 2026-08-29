@@ -1,0 +1,27 @@
+[package]
+name = "aivcs-backup-validator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "aivcs_backup_validator"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+rusoto_s3 = { workspace = true }
+rusoto_core = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }

@@ -1,0 +1,24 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1786862985,
+        "narHash": "sha256-kSR/jfpR4cE26YRZ8exQkoRbEA30vyWimajwZANYYaE=",
+        "rev": "e5bdc4a41d4c072fe1e3787eaa0320a384741d44",
+        "type": "tarball",
+        "url": "https://registry.aivcs.io/api/v1/crates/nixpkgs-source/26.11pre1055335-e5bdc4a41d4c/download"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://registry.aivcs.io/api/v1/crates/nixpkgs-source/26.11pre1055335-e5bdc4a41d4c/download"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
