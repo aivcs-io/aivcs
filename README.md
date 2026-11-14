@@ -1,6 +1,6 @@
 # AIVCS (AI Version Control System)
 
-The **aivcs** engine (Rust CLI `aivcs` + `aivcsd` daemon): state commits, Content-Addressable Storage (CAS), semantic merge, and Forge v2 orchestration for AI agent swarms and sovereign repositories. Open source at [github.com/aivcs-io/aivcs](https://github.com/aivcs-io/aivcs).
+The **aivcs** engine (Rust CLI `aivcs` + `aivcsd` daemon): state commits, Content-Addressable Storage (CAS), semantic merge, and Forge v2 orchestration for AI agent swarms and repositories. Open source at [github.com/aivcs-io/aivcs](https://github.com/aivcs-io/aivcs).
 
 ---
 
@@ -68,7 +68,7 @@ aivcs login status
 
 ## Core Workflows
 
-### 1. Clone a Sovereign Repository
+### 1. Clone a Repository
 ```bash
 aivcs clone aivcs://aivcs/infra-code-micro ./infra-code-micro
 ```

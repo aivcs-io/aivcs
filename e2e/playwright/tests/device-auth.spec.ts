@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("AIVCS Sovereign Issuer Device Authorization Flow", () => {
+test.describe("AIVCS Issuer Device Authorization Flow", () => {
   test("completes end-to-end device flow with browser approval", async ({ page, request }) => {
     // 1. Initiate device flow via HTTP POST
     const initResp = await request.post("https://issuer.aivcs.io/oauth/device_authorization", {
@@ -22,7 +22,7 @@ test.describe("AIVCS Sovereign Issuer Device Authorization Flow", () => {
     // 2. Open browser to the device approval URL with user_code
     await page.goto(`https://issuer.aivcs.io/oauth/device?user_code=${userCode}`);
 
-    // 3. If redirected to login, authenticate as sovereign user
+    // 3. If redirected to login, authenticate as user
     if (page.url().includes("/login")) {
       await page.fill('input[name="username"]', "steve");
       await page.click('button[type="submit"]');
