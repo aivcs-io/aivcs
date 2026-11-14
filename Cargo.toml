@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 
-# Sovereign AI Version Control System (AIVCS)
+# AI Version Control System (AIVCS)
 # Agent-First Content Addressable Storage, State Mesh & Execution Engine
 
 members = [

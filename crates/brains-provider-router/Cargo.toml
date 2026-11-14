@@ -2,7 +2,7 @@
 name = "brains-provider-router"
 version = "0.5.2"
 edition = "2021"
-description = "Sovereign Brains Provider Router: Intelligent dynamic routing, hedging, and token telemetry across in-cluster EKS (llmkube) and hybrid DGX GPU clusters"
+description = "Brains Provider Router: Intelligent dynamic routing, hedging, and token telemetry across in-cluster EKS (llmkube) and hybrid DGX GPU clusters"
 
 [dependencies]
 axum = { version = "0.7.9", features = ["macros"] }

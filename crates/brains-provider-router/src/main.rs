@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         port = port,
         llmkube_url = %llmkube_url,
         dgx_url = %dgx_url,
-        "Starting Sovereign Brains Provider Router service"
+        "Starting Brains Provider Router service"
     );
 
     let state = Arc::new(RouterState::new(&llmkube_url, &dgx_url));

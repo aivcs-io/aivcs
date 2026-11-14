@@ -1,4 +1,4 @@
-//! Sovereign Cargo sparse registry — `registry.aivcs.io`.
+//! Cargo sparse registry — `registry.aivcs.io`.
 //!
 //! Rust + OCI on EKS, replacing the Cloudflare Worker. Object storage is AWS S3
 //! (us-east-2), not R2, so no part of the registry depends on Cloudflare compute

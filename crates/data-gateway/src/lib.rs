@@ -1,4 +1,4 @@
-//! Sovereign Data Gateway: Axum microservice for orchestration state,
+//! Data Gateway: Axum microservice for orchestration state,
 //! automated CAS payload offloading, and recursive DAG execution traversal.
 
 use axum::{
